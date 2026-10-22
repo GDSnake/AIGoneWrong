@@ -65,6 +65,16 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 endif()
 
+set(BUILD_TESTING OFF CACHE BOOL "Build tests" FORCE)
+set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "Build tinyxml2 tests" FORCE)
+FetchContent_Declare(
+    tinyxml2
+    URL https://github.com/leethomason/tinyxml2/archive/refs/tags/11.0.0.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(tinyxml2)
+target_link_libraries(${PROJECT_NAME} PRIVATE tinyxml2::tinyxml2)
+
 if(WIN32)
     function(download_sdl_package package version archive_prefix root config_file)
         if(EXISTS "${root}/cmake/${config_file}")
@@ -149,11 +159,16 @@ set(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config.json")
 if(NOT EXISTS "${CONFIG_FILE}")
     file(WRITE "${CONFIG_FILE}" [=[
 {
-    "title": "Default Game Name",
-    "window_width": 1280,
-    "window_height": 720,
-    "fullscreen": false,
-    "start_entities_number": 10
+    "window": {
+        "title": "Default Game Name",
+        "width": 1280,
+        "height": 720,
+        "fullscreen": false
+    },
+    "start_entities_number": 10,
+    "fonts": {
+        "defaultFont": "assets/Fonts/arial.ttf"
+    }
 }
 ]=])
     message(STATUS "Created default config.json")

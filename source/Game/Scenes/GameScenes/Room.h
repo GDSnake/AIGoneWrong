@@ -4,12 +4,13 @@
 #include <string>
 
 #include "Config/Config.h"
-#include "Scene.h"
+#include "Core/TiledLevelLoader.h"
+#include "Game/Scenes/Scene.h"
 #include "Input/InputManager.h"
 
 struct TTF_Font;
 
-class GameScene : public Scene
+class Room : public Scene
 {
 public:
     void init() override;
@@ -29,6 +30,7 @@ private:
     void updateStrings();
 
     std::unique_ptr<InputManager> _input;
+    TiledLevelLoader _level;
     const ConfigData& _configData = Config::getInstance().getConfigData();
 
     // Text

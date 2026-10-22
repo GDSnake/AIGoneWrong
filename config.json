@@ -1,0 +1,21 @@
+{
+    "window": {
+        "title": "Default Game Name",
+        "width": 1280,
+        "height": 720,
+        "fullscreen": false
+    },
+    "start_entities_number": 10,
+    "fonts": {
+        "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
+    },
+    "imageSheet": {
+        "room": {
+            "path": "assets/Sprites/pixel-cyberpunk-interior.png",
+            "frame_width": 32,
+            "frame_height": 32,
+            "columns": 21,
+            "rows": 11
+        }
+    }
+}

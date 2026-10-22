@@ -2,6 +2,7 @@
 
 #include "Config/Config.h"
 #include "Game/Game.h"
+#include "Game/Scenes/GameScenes/Room.h"
 
 int main() {
 
@@ -15,7 +16,7 @@ int main() {
         return 1;
     }
 
-    Game game;
+    Game game(std::make_unique<Room>());
     if (game.init())
     {
         game.run();

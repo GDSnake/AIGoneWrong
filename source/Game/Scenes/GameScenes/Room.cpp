@@ -1,4 +1,4 @@
-#include "GameScene.h"
+#include "Room.h"
 
 #include "AssetManagers/AudioManager.h"
 #include "AssetManagers/FontsManager.h"
@@ -6,11 +6,17 @@
 
 #include "Core/Renderer.h"
 
-void GameScene::init()
+void Room::init()
 {
     _input = std::make_unique<InputManager>();
     SpriteManager::getInstance();
     Renderer::getInstance();
+
+    if (!_level.load("assets/Maps/room.json", Renderer::getInstance().getRenderer()))
+    {
+        _input->quit();
+        return;
+    }
 
     _titleText = std::format("{}{}",TitleFontInfo.baseText, "Title");
     //Add all the texts you need for the scene
@@ -19,17 +25,17 @@ void GameScene::init()
     //Add all the fonts you need for the scene
 }
 
-void GameScene::handleEvents(const SDL_Event& event)
+void Room::handleEvents(const SDL_Event& event)
 {
     _input->handleEvent(event);
 }
 
-bool GameScene::shouldQuit() const
+bool Room::shouldQuit() const
 {
     return _input->shouldQuit();
 }
 
-void GameScene::handleInput()
+void Room::handleInput()
 {
     if (_input->isKeyPressed(SDL_SCANCODE_ESCAPE))
     {
@@ -37,7 +43,7 @@ void GameScene::handleInput()
     }
 }
 
-void GameScene::update(float deltaTime)
+void Room::update(float deltaTime)
 {
     handleInput();
     _input->update();
@@ -49,13 +55,15 @@ void GameScene::update(float deltaTime)
     Renderer::getInstance().present();
 }
 
-void GameScene::render()
+void Room::render()
 {
-    Renderer::getInstance().clear();
-    SDL_SetRenderDrawColor(Renderer::getInstance().getRenderer(), 255, 255, 255, 255);
+    Renderer& renderer = Renderer::getInstance();
+    renderer.setDrawColor({ 0, 0, 0, 255 });
+    renderer.clear();
+    _level.render(renderer.getRenderer());
 }
 
-void GameScene::renderTexts()
+void Room::renderTexts()
 {
     //Renderer::getInstance().drawText(_textFont, _textText, TextInfo, _stringsThatUpdated);
     // Render all the texts that need to be updated
@@ -64,7 +72,7 @@ void GameScene::renderTexts()
     //_stringsThatUpdated = false;
 }
 
-void GameScene::updateStrings()
+void Room::updateStrings()
 {
   /** Update the strings you need, verify if they change to save on performance 
     if (_oldString != _newString) {
@@ -75,16 +83,17 @@ void GameScene::updateStrings()
   */
 }
 
-void GameScene::cleanup()
+void Room::cleanup()
 {
+    _level.clear();
 }
 
-std::string GameScene::getName() const
+std::string Room::getName() const
 {
-    return "GameScene";
+    return "Room";
 }
 
-std::unique_ptr<Scene> GameScene::getNextScene()
+std::unique_ptr<Scene> Room::getNextScene()
 {
     return {};
 }

@@ -21,7 +21,7 @@ bool Renderer::init()
     }
 
     const ConfigData& config = Config::getInstance().getConfigData();
-    const SDL_WindowFlags flags = config.fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
+    const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | (config.fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
     if (!SDL_CreateWindowAndRenderer(config.title.c_str(), config.width, config.height, flags, &_window, &_renderer))
     {
         SDL_Log("Window/renderer creation failed: %s", SDL_GetError());
