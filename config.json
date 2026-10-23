@@ -23,6 +23,13 @@
             "frame_height": 64,
             "columns": 12,
             "rows": 22
+        },
+        "door": {
+            "path": "assets/Sprites/door-animation.png",
+            "frame_width": 48,
+            "frame_height": 48,
+            "columns": 2,
+            "rows": 1
         }
     }
 }

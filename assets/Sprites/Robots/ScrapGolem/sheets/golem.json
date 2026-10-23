@@ -1,0 +1,82 @@
+{
+  "name": "golem",
+  "title": "Scrap-Golem",
+  "cell": [
+    192,
+    192
+  ],
+  "pivot": [
+    96,
+    150
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 10,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "golem_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "breathing, head turns, the core pulses, a spark arc now and then, blink"
+    },
+    "walk": {
+      "frames": 12,
+      "frame_ms": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "loop": true,
+      "sheet": "golem_walk.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "heavy stomp, arms swing, dust on each footfall; 2 px across / 1 px down per frame on diagonals"
+    }
+  }
+}

@@ -9,6 +9,7 @@
 #include "Input/InputManager.h"
 
 struct TTF_Font;
+class Sprite;
 
 class Room : public Scene
 {
@@ -30,6 +31,7 @@ private:
 
     std::unique_ptr<InputManager> _input;
     TiledLevelLoader _level;
+    std::shared_ptr<Sprite> _doorSprite;
     const ConfigData& _configData = Config::getInstance().getConfigData();
 
 #ifdef DEBUG

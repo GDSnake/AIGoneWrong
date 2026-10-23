@@ -1,0 +1,76 @@
+{
+  "name": "crawler",
+  "title": "Crawler-Bot",
+  "cell": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    53
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "crawler_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "bob, mandible twitch, foot tap, blink"
+    },
+    "walk": {
+      "frames": 8,
+      "frame_ms": [
+        70,
+        70,
+        70,
+        70,
+        70,
+        70,
+        70,
+        70
+      ],
+      "loop": true,
+      "sheet": "crawler_walk.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "fast six-legged tripod gait"
+    }
+  }
+}

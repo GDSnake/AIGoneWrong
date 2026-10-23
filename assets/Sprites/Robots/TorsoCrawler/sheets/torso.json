@@ -1,0 +1,76 @@
+{
+  "name": "torso",
+  "title": "Torso-Crawler",
+  "cell": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    53
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130
+      ],
+      "loop": true,
+      "sheet": "torso_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "propped on its arms, head twitches, jaw clacks, heart pulses, spine sways"
+    },
+    "crawl": {
+      "frames": 8,
+      "frame_ms": [
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110
+      ],
+      "loop": true,
+      "sheet": "torso_crawl.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "hand-over-hand pull, spine drags behind; 2 px across / 1 px down per frame on diagonals"
+    }
+  }
+}

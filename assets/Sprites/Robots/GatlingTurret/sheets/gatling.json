@@ -1,0 +1,76 @@
+{
+  "name": "gatling",
+  "title": "Gatling-Turret",
+  "cell": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    53
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130
+      ],
+      "loop": true,
+      "sheet": "gatling_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "scan sweep, barrels tick, beacon blink, blink"
+    },
+    "fire": {
+      "frames": 8,
+      "frame_ms": [
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50
+      ],
+      "loop": true,
+      "sheet": "gatling_fire.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "both gatlings spin and fire in turns, tracer rounds stream out, muzzle flashes, casings fly, head shakes (loop while firing)"
+    }
+  }
+}

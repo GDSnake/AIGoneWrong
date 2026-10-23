@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="4">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="9">
  <editorsettings>
   <export target="../assets/Maps/room.json" format="json"/>
  </editorsettings>
@@ -72,7 +72,18 @@
 </data>
  </layer>
  <objectgroup id="9" name="Doors">
-  <object id="3" name="Door_1" type="Door" gid="234" x="135.107" y="95.0064" width="48" height="48"/>
+  <object id="3" name="Door_1" type="Door" gid="234" x="135.107" y="95.0064" width="48" height="48">
+   <properties>
+    <property name="openRadius" type="float" value="20"/>
+   </properties>
+  </object>
+  <object id="4" x="143.328" y="52.5973" width="25.6412" height="32.2159"/>
+  <object id="7" name="Door_1_Enter" type="DoorEntry" x="147.273" y="49.9675" width="34.1883" height="47.9951">
+   <properties>
+    <property name="door" value="Door_1"/>
+   </properties>
+  </object>
+  <object id="8" x="124.261" y="340.568"/>
  </objectgroup>
  <objectgroup id="6" name="Player">
   <object id="1" name="PlayerSpawn" x="64.4317" y="155.82">

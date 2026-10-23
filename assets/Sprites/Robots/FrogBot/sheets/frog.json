@@ -1,0 +1,76 @@
+{
+  "name": "frog",
+  "title": "Frog-Bot",
+  "cell": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    53
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "frog_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "throat pulses, looks around, blink"
+    },
+    "hop": {
+      "frames": 8,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ],
+      "loop": true,
+      "sheet": "frog_hop.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "one hop per cycle, feet planted on the ground frames; 2 px across / 1 px down per frame on diagonals"
+    }
+  }
+}

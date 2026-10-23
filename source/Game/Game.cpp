@@ -144,6 +144,12 @@ void Game::update(float dt)
     _currentScene->renderAnimations();
     Renderer::getInstance().present();
 
+    if (_currentScene->isExitReady())
+    {
+        _isRunning = false;
+        return;
+    }
+
     if (std::unique_ptr<Scene> nextScene = _currentScene->getNextScene())
     {
         //Cleans current scene

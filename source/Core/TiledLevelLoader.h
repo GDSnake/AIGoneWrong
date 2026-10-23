@@ -19,6 +19,15 @@ struct TiledSpawnPoint
     std::size_t renderLayer = 0;
 };
 
+struct TiledDoor
+{
+    std::string name;
+    SDL_FRect bounds{};
+    float openRadius = 64.0f;
+    std::optional<SDL_FRect> entryBounds;
+    std::size_t renderLayer = 0;
+};
+
 class TiledLevelLoader
 {
 public:
@@ -27,6 +36,8 @@ public:
         const std::function<void(std::size_t, float, float, float)>& renderEntities = {}) const;
     std::optional<TiledSpawnPoint> getSpawn(std::string_view name) const;
     std::span<const TiledSpawnPoint> getSpawns() const noexcept;
+    std::span<const TiledDoor> getDoors() const noexcept;
+    void setDoorFrame(std::size_t index, SDL_Texture* texture, const SDL_FRect& source);
     std::span<const SDL_FRect> getCollisions() const noexcept;
     SDL_FRect getBounds() const noexcept;
     void clear();
@@ -46,6 +57,8 @@ private:
     std::vector<Tile> _tiles;
     std::vector<SDL_FRect> _collisions;
     std::vector<TiledSpawnPoint> _spawns;
+    std::vector<TiledDoor> _doors;
+    std::vector<std::size_t> _doorTileIndices;
     std::vector<std::size_t> _entityLayers;
     float _width = 0.0f;
     float _height = 0.0f;

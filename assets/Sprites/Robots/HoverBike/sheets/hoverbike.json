@@ -1,0 +1,76 @@
+{
+  "name": "hoverbike",
+  "title": "Hover-Bike",
+  "cell": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    53
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "hoverbike_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "hover bob, roll sway, lift pads pulse, engine idles, beacon blink"
+    },
+    "fly": {
+      "frames": 8,
+      "frame_ms": [
+        70,
+        70,
+        70,
+        70,
+        70,
+        70,
+        70,
+        70
+      ],
+      "loop": true,
+      "sheet": "hoverbike_fly.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "full throttle, engine plume flickers, roll weave; 2 px across / 1 px down per frame on diagonals"
+    }
+  }
+}

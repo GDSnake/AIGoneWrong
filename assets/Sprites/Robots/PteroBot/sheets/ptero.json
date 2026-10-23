@@ -1,0 +1,76 @@
+{
+  "name": "ptero",
+  "title": "Ptero-Bot",
+  "cell": [
+    96,
+    96
+  ],
+  "pivot": [
+    48,
+    79
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110
+      ],
+      "loop": true,
+      "sheet": "ptero_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "hovers on slow wing beats, head looks around, beak clacks, blink"
+    },
+    "fly": {
+      "frames": 8,
+      "frame_ms": [
+        85,
+        85,
+        85,
+        85,
+        85,
+        85,
+        85,
+        85
+      ],
+      "loop": true,
+      "sheet": "ptero_fly.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "full wing beats, thrusters on, legs trailing; 3 px across / 1.5 px down per frame on diagonals (96 px cells)"
+    }
+  }
+}

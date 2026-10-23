@@ -21,7 +21,21 @@ enum class EntityBehavior : std::uint8_t
 {
   None,
   PlayerInput,
+  Door,
   Count
+};
+
+struct EntityDoorSettings
+{
+    float openRadius = 20.0f;
+    SDL_FRect entryBounds{};
+    std::size_t visualIndex = 0;
+};
+
+struct DoorVisualChange
+{
+  std::size_t visualIndex;
+  std::size_t frameIndex;
 };
 
 struct EntityAnimation
@@ -53,6 +67,7 @@ struct EntityData
     EntityBehavior behavior = EntityBehavior::None;
     float movementSpeed = 96.0f;
     std::size_t renderLayer = 0;
+    EntityDoorSettings door;
 };
 
 struct Entities
@@ -69,6 +84,8 @@ struct Entities
   void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds);
   void SetVelocity(std::size_t index, float velocityX, float velocityY);
   void UpdateControllers(const InputManager& input);
+  std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
+  bool ConsumeSceneExitRequest() noexcept;
   void Update(float deltaTime);
   std::span<const float> GetXPositions() const noexcept;
   std::span<const float> GetYPositions() const noexcept;
@@ -100,6 +117,7 @@ private:
     void ValidateEntity(const EntityData& entity) const;
     void ValidateIndex(std::size_t index) const;
     void UpdatePlayerInput(std::size_t index, const InputManager& input);
+    void UpdateDoor(std::size_t index, const InputManager& input);
 
     std::vector<float> _xEntities;  
     std::vector<float> _yEntities;
@@ -118,9 +136,16 @@ private:
     std::vector<EntityBehavior> _behaviors;
     std::vector<float> _movementSpeeds;
     std::vector<std::size_t> _renderLayers;
+    std::vector<float> _doorOpenRadii;
+    std::vector<SDL_FRect> _doorEntryBounds;
+    std::vector<std::size_t> _doorVisualIndices;
+    std::vector<bool> _doorOpen;
+    std::vector<bool> _doorEntered;
+    std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 
     ParticleSystem& _particleSystem;
     b2WorldId _worldId = b2_nullWorldId;
     float _physicsAccumulator = 0.0f;
+    bool _sceneExitRequested = false;
 };

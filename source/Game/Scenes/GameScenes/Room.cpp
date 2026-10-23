@@ -55,6 +55,35 @@ void Room::init()
             .behavior = EntityBehavior::PlayerInput,
             .renderLayer = spawn->renderLayer
         });
+        const auto doors = _level.getDoors();
+        if (!doors.empty())
+        {
+            _doorSprite = SpriteManager::getInstance().getSprite("door");
+            if (!_doorSprite || _doorSprite->getFrameCount() < 2)
+            {
+                throw std::runtime_error("Door sprite must contain closed and open frames");
+            }
+            Renderer::getInstance().configureTexture(_doorSprite->getTexture().get());
+            for (std::size_t index = 0; index < doors.size(); ++index)
+            {
+                const TiledDoor& door = doors[index];
+                const SDL_FRect entry = door.entryBounds.value_or(SDL_FRect{});
+                Entities::GetInstance().AddEntity({
+                    .x = door.bounds.x + door.bounds.w * 0.5f,
+                    .y = door.bounds.y + door.bounds.h,
+                    .sprite = _doorSprite,
+                    .visible = false,
+                    .name = door.name,
+                    .collidable = true,
+                    .colliderWidth = door.bounds.w,
+                    .colliderHeight = door.bounds.h,
+                    .behavior = EntityBehavior::Door,
+                    .movementSpeed = 0.0f,
+                    .renderLayer = door.renderLayer,
+                    .door = { door.openRadius, entry, index }
+                });
+            }
+        }
     }
     catch (const std::exception& error)
     {
@@ -107,6 +136,15 @@ void Room::update(float deltaTime)
     else
     {
         Entities::GetInstance().UpdateControllers(*_input);
+        for (const DoorVisualChange& change : Entities::GetInstance().GetDoorVisualChanges())
+        {
+            _level.setDoorFrame(change.visualIndex, _doorSprite->getTexture().get(),
+                _doorSprite->getSourceRect(change.frameIndex));
+        }
+        if (Entities::GetInstance().ConsumeSceneExitRequest() && requestExit())
+        {
+            Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
+        }
     }
     Entities::GetInstance().Update(deltaTime);
     _input->update();
@@ -154,6 +192,7 @@ void Room::cleanup()
 {
     Entities::GetInstance().ClearEntities();
     _level.clear();
+    _doorSprite.reset();
 #ifdef DEBUG
     _drawCollisions = false;
 #endif

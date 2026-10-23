@@ -1,0 +1,80 @@
+{
+  "name": "scorpion",
+  "title": "Scorpion-Bot",
+  "cell": [
+    128,
+    128
+  ],
+  "pivot": [
+    64,
+    96
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 10,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "scorpion_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "claws snap, tail sways, blink"
+    },
+    "walk": {
+      "frames": 10,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ],
+      "loop": true,
+      "sheet": "scorpion_walk.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "six-leg tripod scuttle, feet planted; 2 px across / 1 px down per frame on diagonals"
+    }
+  }
+}

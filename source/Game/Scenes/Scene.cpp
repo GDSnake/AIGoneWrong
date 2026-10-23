@@ -77,6 +77,21 @@ bool Scene::transitionTo(std::unique_ptr<Scene> nextScene)
     return true;
 }
 
+bool Scene::requestExit()
+{
+    if (_exitRequested || _nextScene || !playAnimation(_animationSettings.exitAnimation, _animationSettings.exitDuration))
+    {
+        return false;
+    }
+    _exitRequested = true;
+    return true;
+}
+
+bool Scene::isExitReady() const noexcept
+{
+    return _exitRequested && _animationComplete;
+}
+
 void Scene::updateAnimations(float deltaTime)
 {
     if (_animationComplete || !std::isfinite(deltaTime) || deltaTime < 0.0f)
@@ -99,7 +114,7 @@ void Scene::renderAnimations() const
 
 bool Scene::isTransitioning() const noexcept
 {
-    return !_animationComplete;
+    return !_animationComplete || _exitRequested;
 }
 
 std::unique_ptr<Scene> Scene::getNextScene()

@@ -1,0 +1,76 @@
+{
+  "name": "jelly",
+  "title": "Medusa-Drone",
+  "cell": [
+    96,
+    96
+  ],
+  "pivot": [
+    48,
+    79
+  ],
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "animations": {
+    "idle": {
+      "frames": 8,
+      "frame_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "loop": true,
+      "sheet": "jelly_idle.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "hovers, bell breathes, tentacles wave, core flickers"
+    },
+    "drift": {
+      "frames": 8,
+      "frame_ms": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "loop": true,
+      "sheet": "jelly_drift.png",
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "note": "jet-pulse swim, tentacles stream behind; 3 px across / 1.5 px down per frame on diagonals (96 px cells)"
+    }
+  }
+}

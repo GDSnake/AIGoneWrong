@@ -39,6 +39,8 @@ public:
     bool playAnimation(SceneAnimation animation, float duration = 0.35f);
     void startEntryAnimation();
     bool transitionTo(std::unique_ptr<Scene> nextScene);
+    bool requestExit();
+    bool isExitReady() const noexcept;
     void updateAnimations(float deltaTime);
     void renderAnimations() const;
     bool isTransitioning() const noexcept;
@@ -50,5 +52,6 @@ private:
     float _animationTime = 0.0f;
     float _animationDuration = 0.0f;
     bool _animationComplete = true;
+    bool _exitRequested = false;
     std::unique_ptr<Scene> _nextScene;
 };

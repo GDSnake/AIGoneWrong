@@ -113,12 +113,60 @@
                  "id":3,
                  "name":"Door_1",
                  "opacity":1,
+                 "properties":[
+                        {
+                         "name":"openRadius",
+                         "type":"float",
+                         "value":20
+                        }],
                  "rotation":0,
                  "type":"Door",
                  "visible":true,
                  "width":48,
-                 "x":135.106941067699,
-                 "y":95.0064034517002
+                 "x":135.107,
+                 "y":95.0064
+                }, 
+                {
+                 "height":32.2159,
+                 "id":4,
+                 "name":"",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":25.6412,
+                 "x":143.328,
+                 "y":52.5973
+                }, 
+                {
+                 "height":47.9951,
+                 "id":7,
+                 "name":"Door_1_Enter",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"door",
+                         "type":"string",
+                         "value":"Door_1"
+                        }],
+                 "rotation":0,
+                 "type":"DoorEntry",
+                 "visible":true,
+                 "width":34.1883,
+                 "x":147.273,
+                 "y":49.9675
+                }, 
+                {
+                 "height":0,
+                 "id":8,
+                 "name":"",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":124.261,
+                 "y":340.568
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -191,7 +239,7 @@
          "y":0
         }],
  "nextlayerid":11,
- "nextobjectid":4,
+ "nextobjectid":9,
  "orientation":"orthogonal",
  "renderorder":"left-down",
  "tiledversion":"1.12.2",

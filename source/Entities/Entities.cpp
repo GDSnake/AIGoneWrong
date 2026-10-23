@@ -33,6 +33,11 @@ Entities::Entities() : _particleSystem(ParticleSystem::GetInstance())
 	_behaviors.reserve(baseSize);
 	_movementSpeeds.reserve(baseSize);
 	_renderLayers.reserve(baseSize);
+	_doorOpenRadii.reserve(baseSize);
+	_doorEntryBounds.reserve(baseSize);
+	_doorVisualIndices.reserve(baseSize);
+	_doorOpen.reserve(baseSize);
+	_doorEntered.reserve(baseSize);
 	ClearEntities();
 }
 
@@ -92,6 +97,11 @@ void Entities::AddEntity(const EntityData& entity)
 		_behaviors[PlayerIndex] = entity.behavior;
 		_movementSpeeds[PlayerIndex] = entity.movementSpeed;
 		_renderLayers[PlayerIndex] = entity.renderLayer;
+		_doorOpenRadii[PlayerIndex] = entity.door.openRadius;
+		_doorEntryBounds[PlayerIndex] = entity.door.entryBounds;
+		_doorVisualIndices[PlayerIndex] = entity.door.visualIndex;
+		_doorOpen[PlayerIndex] = false;
+		_doorEntered[PlayerIndex] = false;
 		return;
 	}
 
@@ -118,6 +128,11 @@ void Entities::AddEntity(const EntityData& entity)
 		_behaviors.reserve(newCapacity);
 		_movementSpeeds.reserve(newCapacity);
 		_renderLayers.reserve(newCapacity);
+		_doorOpenRadii.reserve(newCapacity);
+		_doorEntryBounds.reserve(newCapacity);
+		_doorVisualIndices.reserve(newCapacity);
+		_doorOpen.reserve(newCapacity);
+		_doorEntered.reserve(newCapacity);
 	}
 
 	const b2BodyId body = CreateBody(entity);
@@ -140,6 +155,11 @@ void Entities::AddEntity(const EntityData& entity)
 		_behaviors.push_back(entity.behavior);
 		_movementSpeeds.push_back(entity.movementSpeed);
 		_renderLayers.push_back(entity.renderLayer);
+		_doorOpenRadii.push_back(entity.door.openRadius);
+		_doorEntryBounds.push_back(entity.door.entryBounds);
+		_doorVisualIndices.push_back(entity.door.visualIndex);
+		_doorOpen.push_back(false);
+		_doorEntered.push_back(false);
 		_nameEntities.try_emplace(entity.name, previousSize);
 	}
 	catch (...)
@@ -161,6 +181,11 @@ void Entities::AddEntity(const EntityData& entity)
 		_behaviors.resize(previousSize);
 		_movementSpeeds.resize(previousSize);
 		_renderLayers.resize(previousSize);
+		_doorOpenRadii.resize(previousSize);
+		_doorEntryBounds.resize(previousSize);
+		_doorVisualIndices.resize(previousSize);
+		_doorOpen.resize(previousSize);
+		_doorEntered.resize(previousSize);
 		if (b2Body_IsValid(body))
 		{
 			b2DestroyBody(body);
@@ -201,6 +226,11 @@ void Entities::RemoveEntity(const EntityData& entity)
 		_behaviors[PlayerIndex] = EntityBehavior::None;
 		_movementSpeeds[PlayerIndex] = 96.0f;
 		_renderLayers[PlayerIndex] = 0;
+		_doorOpenRadii[PlayerIndex] = 64.0f;
+		_doorEntryBounds[PlayerIndex] = {};
+		_doorVisualIndices[PlayerIndex] = 0;
+		_doorOpen[PlayerIndex] = false;
+		_doorEntered[PlayerIndex] = false;
 		_nameEntities.erase(found);
 		return;
 	}
@@ -222,6 +252,11 @@ void Entities::RemoveEntity(const EntityData& entity)
 	_behaviors.erase(_behaviors.begin() + index);
 	_movementSpeeds.erase(_movementSpeeds.begin() + index);
 	_renderLayers.erase(_renderLayers.begin() + index);
+	_doorOpenRadii.erase(_doorOpenRadii.begin() + index);
+	_doorEntryBounds.erase(_doorEntryBounds.begin() + index);
+	_doorVisualIndices.erase(_doorVisualIndices.begin() + index);
+	_doorOpen.erase(_doorOpen.begin() + index);
+	_doorEntered.erase(_doorEntered.begin() + index);
 	_nameEntities.erase(found);
 	for (auto& nameIndex : _nameEntities)
 	{
@@ -245,7 +280,8 @@ void Entities::UpdateEntity(const EntityData& entity)
 	const auto index = found->second;
 	const bool hadBody = b2Body_IsValid(_bodyIds[index]);
 	const bool replaceBody = entity.collidable && (!hadBody ||
-		_colliderSizes[index].x != entity.colliderWidth || _colliderSizes[index].y != entity.colliderHeight);
+		_colliderSizes[index].x != entity.colliderWidth || _colliderSizes[index].y != entity.colliderHeight ||
+		(_behaviors[index] == EntityBehavior::Door) != (entity.behavior == EntityBehavior::Door));
 	const b2BodyId body = replaceBody ? CreateBody(entity) : _bodyIds[index];
 	try
 	{
@@ -281,9 +317,22 @@ void Entities::UpdateEntity(const EntityData& entity)
 		_moving[index] = false;
 	}
 	_animations[index] = entity.animation;
+	if (_behaviors[index] != entity.behavior)
+	{
+		_doorOpen[index] = false;
+		_doorEntered[index] = false;
+	}
 	_behaviors[index] = entity.behavior;
 	_movementSpeeds[index] = entity.movementSpeed;
 	_renderLayers[index] = entity.renderLayer;
+	_doorOpenRadii[index] = entity.door.openRadius;
+	_doorEntryBounds[index] = entity.door.entryBounds;
+	_doorVisualIndices[index] = entity.door.visualIndex;
+	if (entity.behavior == EntityBehavior::Door && _doorOpen[index])
+	{
+		_frames[index] = 1;
+		b2Body_Disable(_bodyIds[index]);
+	}
 	SetVelocity(index, entity.velocityX, entity.velocityY);
 }
 
@@ -295,6 +344,8 @@ void Entities::ClearEntities()
 	}
 	_worldId = b2_nullWorldId;
 	_physicsAccumulator = 0.0f;
+	_sceneExitRequested = false;
+	_doorVisualChanges.clear();
 	_xEntities.assign(PlayerIndex + 1, 0.0f);
 	_yEntities.assign(PlayerIndex + 1, 0.0f);
 	_spriteEntities.assign(PlayerIndex + 1, nullptr);
@@ -313,6 +364,11 @@ void Entities::ClearEntities()
 	_behaviors.assign(PlayerIndex + 1, EntityBehavior::None);
 	_movementSpeeds.assign(PlayerIndex + 1, 96.0f);
 	_renderLayers.assign(PlayerIndex + 1, 0);
+	_doorOpenRadii.assign(PlayerIndex + 1, 64.0f);
+	_doorEntryBounds.assign(PlayerIndex + 1, {});
+	_doorVisualIndices.assign(PlayerIndex + 1, 0);
+	_doorOpen.assign(PlayerIndex + 1, false);
+	_doorEntered.assign(PlayerIndex + 1, false);
 	_nameEntities.clear();
 }
 
@@ -345,7 +401,8 @@ EntityData Entities::GetEntity(const std::size_t index) const
 		_animations[index],
 		_behaviors[index],
 		_movementSpeeds[index],
-		_renderLayers[index]
+		_renderLayers[index],
+		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] }
 	};
 }
 
@@ -373,7 +430,8 @@ EntityData Entities::GetEntity(const std::string& name) const
 		_animations[index],
 		_behaviors[index],
 		_movementSpeeds[index],
-		_renderLayers[index]
+		_renderLayers[index],
+		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] }
 	};
 }
 
@@ -440,7 +498,7 @@ b2BodyId Entities::CreateBody(const EntityData& entity)
 		throw std::logic_error("Initialize physics before adding a collidable entity");
 	}
 	b2BodyDef definition = b2DefaultBodyDef();
-	definition.type = b2_dynamicBody;
+	definition.type = entity.behavior == EntityBehavior::Door ? b2_staticBody : b2_dynamicBody;
 	definition.fixedRotation = true;
 	definition.position = { entity.x / PixelsPerMeter,
 		(entity.y - entity.colliderHeight * 0.5f) / PixelsPerMeter };
@@ -478,8 +536,10 @@ void Entities::UpdateControllers(const InputManager& input)
 	using ControllerUpdate = void (Entities::*)(std::size_t, const InputManager&);
 	static constexpr std::array<ControllerUpdate, static_cast<std::size_t>(EntityBehavior::Count)> controllers{
 		nullptr,
-		&Entities::UpdatePlayerInput
+		&Entities::UpdatePlayerInput,
+		&Entities::UpdateDoor
 	};
+	_doorVisualChanges.clear();
 	for (std::size_t index = 0; index < _behaviors.size(); ++index)
 	{
 		if (const auto update = controllers[static_cast<std::size_t>(_behaviors[index])])
@@ -502,6 +562,52 @@ void Entities::UpdatePlayerInput(std::size_t index, const InputManager& input)
 	const float length = std::sqrt(directionX * directionX + directionY * directionY);
 	const float speed = length > 0.0f ? _movementSpeeds[index] / length : 0.0f;
 	SetVelocity(index, directionX * speed, directionY * speed);
+}
+
+void Entities::UpdateDoor(std::size_t index, const InputManager&)
+{
+	if (!_nameEntities.contains(PlayerName))
+	{
+		return;
+	}
+	const float playerX = _xEntities[PlayerIndex];
+	const float playerY = _yEntities[PlayerIndex];
+	const float distanceX = playerX - _xEntities[index];
+	const float distanceY = playerY - _yEntities[index];
+	const float radius = _doorOpenRadii[index];
+	const bool inRadius = distanceX * distanceX + distanceY * distanceY <= radius * radius;
+	if (_doorOpen[index] != inRadius && !_doorEntered[index])
+	{
+		const std::size_t frameIndex = inRadius ? 1 : 0;
+		_doorVisualChanges.push_back({ _doorVisualIndices[index], frameIndex });
+		_doorOpen[index] = inRadius;
+		_frames[index] = frameIndex;
+		if (inRadius)
+		{
+			b2Body_Disable(_bodyIds[index]);
+		}
+		else
+		{
+			b2Body_Enable(_bodyIds[index]);
+		}
+	}
+	const SDL_FRect& entry = _doorEntryBounds[index];
+	if (_doorOpen[index] && !_doorEntered[index] && entry.w > 0.0f && entry.h > 0.0f &&
+		playerX >= entry.x && playerX <= entry.x + entry.w && playerY >= entry.y && playerY <= entry.y + entry.h)
+	{
+		_doorEntered[index] = true;
+		_sceneExitRequested = true;
+	}
+}
+
+std::span<const DoorVisualChange> Entities::GetDoorVisualChanges() const noexcept
+{
+	return _doorVisualChanges;
+}
+
+bool Entities::ConsumeSceneExitRequest() noexcept
+{
+	return std::exchange(_sceneExitRequested, false);
 }
 
 void Entities::Update(float deltaTime)
@@ -539,7 +645,7 @@ void Entities::Update(float deltaTime)
 
 	for (std::size_t index = 0; index < _spriteEntities.size(); ++index)
 	{
-		if (!_spriteEntities[index])
+		if (!_spriteEntities[index] || _behaviors[index] == EntityBehavior::Door)
 		{
 			continue;
 		}
@@ -662,6 +768,17 @@ void Entities::DrawCollisions(const Renderer& renderer, const SDL_FRect& mapBoun
 
 void Entities::ValidateEntity(const EntityData& entity) const
 {
+	if (entity.behavior == EntityBehavior::Door)
+	{
+		const SDL_FRect& entry = entity.door.entryBounds;
+		if (entity.name == PlayerName || !entity.collidable || !entity.sprite || entity.sprite->getFrameCount() < 2 ||
+			!std::isfinite(entity.door.openRadius) || entity.door.openRadius <= 0.0f ||
+			!std::isfinite(entry.x) || !std::isfinite(entry.y) || !std::isfinite(entry.w) || !std::isfinite(entry.h) ||
+			entry.w < 0.0f || entry.h < 0.0f || (entry.w == 0.0f) != (entry.h == 0.0f))
+		{
+			throw std::invalid_argument("Door entities need a two-frame sprite, collider, positive radius, and valid entry bounds");
+		}
+	}
 	if (entity.behavior >= EntityBehavior::Count || !std::isfinite(entity.movementSpeed) || entity.movementSpeed < 0.0f)
 	{
 		throw std::invalid_argument("Entity behavior and movement speed must be valid");

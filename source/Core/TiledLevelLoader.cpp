@@ -212,6 +212,28 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
             _tiles.push_back(tile);
         };
 
+        const auto propertyValue = [](const nlohmann::json& object, std::string_view name) -> const nlohmann::json*
+        {
+            const auto properties = object.find("properties");
+            if (properties == object.end())
+            {
+                return nullptr;
+            }
+            if (!properties->is_array())
+            {
+                throw std::runtime_error("Object properties must be an array");
+            }
+            for (const auto& property : *properties)
+            {
+                if (property.at("name").get_ref<const std::string&>() == name)
+                {
+                    return &property.at("value");
+                }
+            }
+            return nullptr;
+        };
+        std::vector<std::pair<std::string, SDL_FRect>> doorEntries;
+
         for (const auto& layer : map.at("layers"))
         {
             if (layer.at("type") == "objectgroup")
@@ -246,6 +268,25 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                 for (const auto* entry : objects)
                 {
                     const auto& object = *entry;
+                    const auto objectClass = object.value("class", object.value("type", std::string{}));
+                    if (objectClass == "DoorEntry")
+                    {
+                        const auto* door = propertyValue(object, "door");
+                        const SDL_FRect bounds{ object.at("x").get<float>() + offsetX,
+                            object.at("y").get<float>() + offsetY,
+                            object.at("width").get<float>(), object.at("height").get<float>() };
+                        if (!door || !door->is_string() || door->get_ref<const std::string&>().empty() ||
+                            !std::isfinite(bounds.x) || !std::isfinite(bounds.y) ||
+                            !std::isfinite(bounds.w) || !std::isfinite(bounds.h) || bounds.w <= 0.0f || bounds.h <= 0.0f ||
+                            object.value("rotation", 0.0f) != 0.0f || object.contains("gid") ||
+                            object.value("ellipse", false) || object.value("point", false) ||
+                            object.contains("polygon") || object.contains("polyline"))
+                        {
+                            throw std::runtime_error("DoorEntry must be an unrotated rectangle with a nonempty door property");
+                        }
+                        doorEntries.emplace_back(door->get<std::string>(), bounds);
+                        continue;
+                    }
                     if (object.contains("gid"))
                     {
                         if (!visible || !object.value("visible", true))
@@ -287,6 +328,21 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                         tile.destination.y = originY + std::sin(radians) * centerX + std::cos(radians) * centerY - height * 0.5f;
                         tile.opacity = opacity * objectOpacity;
                         tile.angle = rotation;
+                        if (objectClass == "Door")
+                        {
+                            const auto name = object.value("name", std::string{});
+                            const auto* radius = propertyValue(object, "openRadius");
+                            const float openRadius = radius ? radius->get<float>() : 64.0f;
+                            if (name.empty() || !std::isfinite(openRadius) || openRadius <= 0.0f || rotation != 0.0f ||
+                                (rawGid & (FlipHorizontal | FlipVertical | FlipDiagonal)) != 0 ||
+                                std::any_of(_doors.begin(), _doors.end(), [&name](const TiledDoor& door)
+                                    { return door.name == name; }))
+                            {
+                                throw std::runtime_error("Door must have a unique name, positive openRadius, and no rotation or flips");
+                            }
+                            _doors.push_back({ name, tile.destination, openRadius, std::nullopt, renderLayer });
+                            _doorTileIndices.push_back(_tiles.size());
+                        }
                         appendTile(tile, rawGid);
                         continue;
                     }
@@ -383,6 +439,19 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
             }
         }
 
+        for (const auto& [name, bounds] : doorEntries)
+        {
+            const auto door = std::find_if(_doors.begin(), _doors.end(), [&name](const TiledDoor& entry)
+            {
+                return entry.name == name;
+            });
+            if (door == _doors.end() || door->entryBounds)
+            {
+                throw std::runtime_error("DoorEntry references an unknown door or duplicates its entry: " + name);
+            }
+            door->entryBounds = bounds;
+        }
+
         for (auto& tileset : tilesets)
         {
             _textures.push_back(std::move(tileset.texture));
@@ -468,6 +537,24 @@ std::span<const TiledSpawnPoint> TiledLevelLoader::getSpawns() const noexcept
     return _spawns;
 }
 
+std::span<const TiledDoor> TiledLevelLoader::getDoors() const noexcept
+{
+    return _doors;
+}
+
+void TiledLevelLoader::setDoorFrame(std::size_t index, SDL_Texture* texture, const SDL_FRect& source)
+{
+    if (index >= _doorTileIndices.size() || !texture ||
+        !std::isfinite(source.x) || !std::isfinite(source.y) || !std::isfinite(source.w) || !std::isfinite(source.h) ||
+        source.x < 0.0f || source.y < 0.0f || source.w <= 0.0f || source.h <= 0.0f)
+    {
+        throw std::invalid_argument("Invalid door frame");
+    }
+    Tile& tile = _tiles[_doorTileIndices[index]];
+    tile.texture = texture;
+    tile.source = source;
+}
+
 std::span<const SDL_FRect> TiledLevelLoader::getCollisions() const noexcept
 {
     return _collisions;
@@ -484,6 +571,8 @@ void TiledLevelLoader::clear()
     _textures.clear();
     _collisions.clear();
     _spawns.clear();
+    _doors.clear();
+    _doorTileIndices.clear();
     _entityLayers.clear();
     _width = 0.0f;
     _height = 0.0f;
