@@ -25,6 +25,11 @@ void InputManager::handleEvent(const SDL_Event& event)
     case SDL_EVENT_QUIT:
         _quit = true;
         break;
+
+    case SDL_EVENT_WINDOW_FOCUS_LOST:
+        _keyStates.clear();
+        _mouseStates.clear();
+        break;
     }
 }
 

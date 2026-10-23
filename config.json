@@ -16,6 +16,13 @@
             "frame_height": 32,
             "columns": 21,
             "rows": 11
+        },
+        "player": {
+            "path": "assets/Sprites/Character 1.png",
+            "frame_width": 64,
+            "frame_height": 64,
+            "columns": 12,
+            "rows": 22
         }
     }
 }

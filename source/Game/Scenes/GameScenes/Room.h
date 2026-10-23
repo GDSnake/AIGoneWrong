@@ -33,6 +33,10 @@ private:
     TiledLevelLoader _level;
     const ConfigData& _configData = Config::getInstance().getConfigData();
 
+#ifdef DEBUG
+    bool _drawCollisions = false;
+#endif
+
     // Text
     TTF_Font* _titleFont = nullptr;
     std::string _titleText;

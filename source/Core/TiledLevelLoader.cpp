@@ -1,13 +1,13 @@
 #include "TiledLevelLoader.h"
 
-#include <SDL3/SDL_log.h>
-#include <SDL3_image/SDL_image.h>
 #include <nlohmann/json.hpp>
 #include <tinyxml2.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -32,11 +32,11 @@ namespace
         int offsetY = 0;
         float imageWidth = 0.0f;
         float imageHeight = 0.0f;
-        std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture{ nullptr, SDL_DestroyTexture };
+        Renderer::Texture texture;
     };
 
     Tileset loadTileset(const nlohmann::json& entry, const std::filesystem::path& mapPath,
-        SDL_Renderer* renderer)
+        const Renderer& renderer)
     {
         const auto tilesetPath = (mapPath.parent_path() / entry.at("source").get<std::string>()).lexically_normal();
         tinyxml2::XMLDocument document;
@@ -74,23 +74,23 @@ namespace
         }
 
         const auto imagePath = (tilesetPath.parent_path() / image->Attribute("source")).lexically_normal();
-        tileset.texture.reset(IMG_LoadTexture(renderer, imagePath.string().c_str()));
-        if (!tileset.texture || !SDL_GetTextureSize(tileset.texture.get(), &tileset.imageWidth, &tileset.imageHeight))
+        tileset.texture = renderer.loadTexture(imagePath);
+        if (!renderer.getTextureSize(tileset.texture.get(), tileset.imageWidth, tileset.imageHeight))
         {
-            throw std::runtime_error("Cannot load tileset image '" + imagePath.string() + "': " + SDL_GetError());
+            throw std::runtime_error("Cannot read tileset image dimensions: " + imagePath.string());
         }
-        SDL_SetTextureBlendMode(tileset.texture.get(), SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(tileset.texture.get(), SDL_SCALEMODE_NEAREST);
         return tileset;
     }
 }
 
-bool TiledLevelLoader::load(const std::filesystem::path& mapPath, SDL_Renderer* renderer)
+bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer& renderer)
 {
     clear();
     try
     {
-        if (!renderer)
+        int outputWidth = 0;
+        int outputHeight = 0;
+        if (!renderer.getOutputSize(outputWidth, outputHeight))
         {
             throw std::runtime_error("A renderer is required to load a level");
         }
@@ -136,7 +136,38 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, SDL_Renderer* 
 
         for (const auto& layer : map.at("layers"))
         {
-            if (!layer.value("visible", true))
+            if (layer.at("type") == "objectgroup")
+            {
+                const float offsetX = layer.value("offsetx", 0.0f) + layer.value("x", 0.0f) * tileWidth;
+                const float offsetY = layer.value("offsety", 0.0f) + layer.value("y", 0.0f) * tileHeight;
+                const std::size_t renderLayer = _entityLayers.size();
+                _entityLayers.push_back(_tiles.size());
+                for (const auto& object : layer.at("objects"))
+                {
+                    const auto name = object.value("name", std::string{});
+                    if (name.empty() || !object.value("point", false))
+                    {
+                        continue;
+                    }
+                    if (std::any_of(_spawns.begin(), _spawns.end(), [&name](const TiledSpawnPoint& spawn)
+                        { return spawn.name == name; }))
+                    {
+                        throw std::runtime_error("Spawn point names must be unique: " + name);
+                    }
+                    const SDL_FPoint position{ object.at("x").get<float>() + offsetX,
+                        object.at("y").get<float>() + offsetY };
+                    if (!std::isfinite(position.x) || !std::isfinite(position.y))
+                    {
+                        throw std::runtime_error("Spawn point positions must be finite: " + name);
+                    }
+                    _spawns.push_back({ name, position, renderLayer });
+                }
+                continue;
+            }
+
+            const bool visible = layer.value("visible", true);
+            const bool collisionLayer = layer.value("name", std::string{}) == "collision";
+            if (!visible && !collisionLayer)
             {
                 continue;
             }
@@ -180,6 +211,17 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, SDL_Renderer* 
                     const auto rawGid = static_cast<std::uint32_t>(value);
                     const auto gid = rawGid & TileIdMask;
                     if (gid == 0)
+                    {
+                        continue;
+                    }
+
+                    if (collisionLayer)
+                    {
+                        _collisions.push_back({ static_cast<float>(tileX) * tileWidth + offsetX,
+                            static_cast<float>(tileY) * tileHeight + offsetY,
+                            static_cast<float>(tileWidth), static_cast<float>(tileHeight) });
+                    }
+                    if (!visible)
                     {
                         continue;
                     }
@@ -251,22 +293,23 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, SDL_Renderer* 
     }
     catch (const std::exception& error)
     {
-        SDL_Log("Unable to load Tiled level '%s': %s", mapPath.string().c_str(), error.what());
+        std::cerr << "Unable to load Tiled level '" << mapPath.string() << "': " << error.what() << '\n';
         clear();
         return false;
     }
 }
 
-void TiledLevelLoader::render(SDL_Renderer* renderer) const
+void TiledLevelLoader::render(const Renderer& renderer,
+    const std::function<void(std::size_t, float, float, float)>& renderEntities) const
 {
-    if (!renderer || _width <= 0.0f || _height <= 0.0f)
+    if (_width <= 0.0f || _height <= 0.0f)
     {
         return;
     }
 
     int outputWidth = 0;
     int outputHeight = 0;
-    if (!SDL_GetRenderOutputSize(renderer, &outputWidth, &outputHeight) || outputWidth <= 0 || outputHeight <= 0)
+    if (!renderer.getOutputSize(outputWidth, outputHeight) || outputWidth <= 0 || outputHeight <= 0)
     {
         return;
     }
@@ -274,30 +317,74 @@ void TiledLevelLoader::render(SDL_Renderer* renderer) const
     const float offsetX = (outputWidth - _width * scale) * 0.5f;
     const float offsetY = (outputHeight - _height * scale) * 0.5f;
 
-    for (const Tile& tile : _tiles)
+    std::size_t renderLayer = 0;
+    for (std::size_t tileIndex = 0; tileIndex <= _tiles.size(); ++tileIndex)
     {
+        while (renderLayer < _entityLayers.size() && tileIndex == _entityLayers[renderLayer])
+        {
+            if (renderEntities)
+            {
+                renderEntities(renderLayer, scale, offsetX, offsetY);
+            }
+            ++renderLayer;
+        }
+        if (tileIndex == _tiles.size())
+        {
+            break;
+        }
+        const Tile& tile = _tiles[tileIndex];
         const SDL_FRect destination{
             offsetX + tile.destination.x * scale,
             offsetY + tile.destination.y * scale,
             tile.destination.w * scale,
             tile.destination.h * scale
         };
-        SDL_SetTextureAlphaModFloat(tile.texture, tile.opacity);
         if (tile.angle == 0.0 && tile.flip == SDL_FLIP_NONE)
         {
-            SDL_RenderTexture(renderer, tile.texture, &tile.source, &destination);
+            renderer.drawTexture(tile.texture, destination, &tile.source, tile.opacity);
         }
         else
         {
-            SDL_RenderTextureRotated(renderer, tile.texture, &tile.source, &destination, tile.angle, nullptr, tile.flip);
+            renderer.drawTextureRotated(tile.texture, destination, &tile.source, tile.angle, tile.flip, tile.opacity);
         }
     }
+}
+
+std::optional<TiledSpawnPoint> TiledLevelLoader::getSpawn(std::string_view name) const
+{
+    const auto spawn = std::find_if(_spawns.begin(), _spawns.end(), [name](const TiledSpawnPoint& point)
+    {
+        return point.name == name;
+    });
+    if (spawn == _spawns.end())
+    {
+        return std::nullopt;
+    }
+    return *spawn;
+}
+
+std::span<const TiledSpawnPoint> TiledLevelLoader::getSpawns() const noexcept
+{
+    return _spawns;
+}
+
+std::span<const SDL_FRect> TiledLevelLoader::getCollisions() const noexcept
+{
+    return _collisions;
+}
+
+SDL_FRect TiledLevelLoader::getBounds() const noexcept
+{
+    return { 0.0f, 0.0f, _width, _height };
 }
 
 void TiledLevelLoader::clear()
 {
     _tiles.clear();
     _textures.clear();
+    _collisions.clear();
+    _spawns.clear();
+    _entityLayers.clear();
     _width = 0.0f;
     _height = 0.0f;
 }

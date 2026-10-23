@@ -1,10 +1,15 @@
 #include "Room.h"
 
+#include <stdexcept>
+#include <utility>
+
 #include "AssetManagers/AudioManager.h"
 #include "AssetManagers/FontsManager.h"
 #include "AssetManagers/SpriteManager.h"
 
 #include "Core/Renderer.h"
+#include "Entities/Entities.h"
+#include "Entities/Sprite.h"
 
 void Room::init()
 {
@@ -12,8 +17,48 @@ void Room::init()
     SpriteManager::getInstance();
     Renderer::getInstance();
 
-    if (!_level.load("assets/Maps/room.json", Renderer::getInstance().getRenderer()))
+    if (!_level.load("assets/Maps/room.json", Renderer::getInstance()))
     {
+        _input->quit();
+        return;
+    }
+
+    const auto spawn = _level.getSpawn("PlayerSpawn");
+    if (!spawn)
+    {
+        SDL_Log("Room map is missing the PlayerSpawn point");
+        _input->quit();
+        return;
+    }
+    try
+    {
+        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds());
+        auto sprite = SpriteManager::getInstance().getSprite("player");
+        if (!sprite)
+        {
+            throw std::runtime_error("Player sprite is missing");
+        }
+        const auto columns = static_cast<std::size_t>(sprite->getSourceRect().w / sprite->getSourceRect(0).w);
+        if (columns < 6 || sprite->getFrameCount() < columns * 2 + 6)
+        {
+            throw std::runtime_error("Player sheet must contain four idle frames and six walk frames in row three");
+        }
+        Renderer::getInstance().configureTexture(sprite->getTexture().get());
+        Entities::GetInstance().AddEntity({
+            .x = spawn->position.x,
+            .y = spawn->position.y,
+            .sprite = std::move(sprite),
+            .visible = true,
+            .name = Entities::PlayerName,
+            .collidable = true,
+            .animation = { 0, 4, columns * 2, 6, 0.18f, 0.1f },
+            .behavior = EntityBehavior::PlayerInput,
+            .renderLayer = spawn->renderLayer
+        });
+    }
+    catch (const std::exception& error)
+    {
+        SDL_Log("Unable to initialize room entities: %s", error.what());
         _input->quit();
         return;
     }
@@ -28,6 +73,12 @@ void Room::init()
 void Room::handleEvents(const SDL_Event& event)
 {
     _input->handleEvent(event);
+#ifdef DEBUG
+    if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_M && !event.key.repeat)
+    {
+        _drawCollisions = !_drawCollisions;
+    }
+#endif
 }
 
 bool Room::shouldQuit() const
@@ -46,6 +97,8 @@ void Room::handleInput()
 void Room::update(float deltaTime)
 {
     handleInput();
+    Entities::GetInstance().UpdateControllers(*_input);
+    Entities::GetInstance().Update(deltaTime);
     _input->update();
 
     render();
@@ -60,7 +113,16 @@ void Room::render()
     Renderer& renderer = Renderer::getInstance();
     renderer.setDrawColor({ 0, 0, 0, 255 });
     renderer.clear();
-    _level.render(renderer.getRenderer());
+    _level.render(renderer, [&renderer](std::size_t layer, float scale, float offsetX, float offsetY)
+    {
+        Entities::GetInstance().RenderLayer(layer, renderer, scale, offsetX, offsetY);
+    });
+#ifdef DEBUG
+    if (_drawCollisions)
+    {
+        Entities::GetInstance().DrawCollisions(renderer, _level.getBounds());
+    }
+#endif
 }
 
 void Room::renderTexts()
@@ -85,7 +147,11 @@ void Room::updateStrings()
 
 void Room::cleanup()
 {
+    Entities::GetInstance().ClearEntities();
     _level.clear();
+#ifdef DEBUG
+    _drawCollisions = false;
+#endif
 }
 
 std::string Room::getName() const
