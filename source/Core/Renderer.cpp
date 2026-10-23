@@ -128,6 +128,26 @@ void Renderer::drawLines(std::span<const SDL_FPoint> points, const SDL_Color& co
     setDrawColor(previousColor);
 }
 
+void Renderer::drawOverlay(const SDL_Color& color) const
+{
+    if (!_renderer || color.a == 0)
+    {
+        return;
+    }
+    SDL_Color previousColor{};
+    SDL_BlendMode previousBlendMode;
+    if (!SDL_GetRenderDrawColor(_renderer, &previousColor.r, &previousColor.g, &previousColor.b, &previousColor.a) ||
+        !SDL_GetRenderDrawBlendMode(_renderer, &previousBlendMode))
+    {
+        return;
+    }
+    SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
+    setDrawColor(color);
+    SDL_RenderFillRect(_renderer, nullptr);
+    setDrawColor(previousColor);
+    SDL_SetRenderDrawBlendMode(_renderer, previousBlendMode);
+}
+
 void Renderer::drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color) const
 {
     if (!_renderer || !font || text.empty())

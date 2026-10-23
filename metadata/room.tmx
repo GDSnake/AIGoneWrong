@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="2">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="4">
  <editorsettings>
   <export target="../assets/Maps/room.json" format="json"/>
  </editorsettings>
  <tileset firstgid="1" source="../assets/Maps/tileset/room.tsx"/>
+ <tileset firstgid="232" source="../assets/Maps/tileset/door-animation.tsx"/>
+ <tileset firstgid="234" source="../assets/Maps/tileset/door-closed.tsx"/>
  <layer id="3" name="floor" width="11" height="9">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,
@@ -17,17 +19,43 @@
 0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <layer id="8" name="walkableFurniture" width="11" height="9">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,54,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
  <layer id="4" name="collision" width="11" height="9">
   <data encoding="csv">
 106,87,87,87,87,87,87,87,87,87,88,
-127,3,4,5,5,5,5,5,5,5,131,
-127,24,25,26,26,26,26,26,26,26,131,
+127,3,4,5,0,0,5,5,5,5,131,
+127,24,25,26,0,0,26,26,26,26,131,
 127,0,0,0,0,0,0,0,0,0,131,
+127,0,0,0,0,0,0,0,181,182,131,
 127,0,0,0,0,0,0,0,0,0,131,
-127,0,0,0,0,0,0,0,0,0,131,
-127,0,0,0,0,0,0,0,0,0,131,
+127,0,0,0,0,183,184,0,0,0,131,
 127,0,0,0,0,0,0,0,0,0,131,
 170,171,171,171,171,171,171,171,171,171,172
+</data>
+ </layer>
+ <layer id="7" name="wallNonCollision" width="11" height="9">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,5,5,0,0,0,0,0,
+0,0,0,0,26,26,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,116,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
  <layer id="1" name="walkingLayer" width="11" height="9">
@@ -43,19 +71,35 @@
 0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="9" name="Doors">
+  <object id="3" name="Door_1" type="Door" gid="234" x="135.107" y="95.0064" width="48" height="48"/>
+ </objectgroup>
  <objectgroup id="6" name="Player">
   <object id="1" name="PlayerSpawn" x="64.4317" y="155.82">
    <point/>
   </object>
  </objectgroup>
+ <layer id="10" name="upperFurniture" width="11" height="9">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,160,161,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,162,163,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
  <layer id="2" name="Upper Layer" width="11" height="9">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,9,10,0,0,0,
+0,19,20,21,0,0,9,10,14,15,0,
 0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,71,0,0,
 0,198,199,0,0,0,0,0,0,0,0,
-0,219,220,0,0,0,0,0,0,0,0,
+0,219,220,0,0,0,164,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0

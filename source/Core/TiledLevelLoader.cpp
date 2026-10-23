@@ -4,10 +4,12 @@
 #include <tinyxml2.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -30,6 +32,7 @@ namespace
         int margin;
         int offsetX = 0;
         int offsetY = 0;
+        SDL_FPoint objectAlignment{ 0.0f, 1.0f };
         float imageWidth = 0.0f;
         float imageHeight = 0.0f;
         Renderer::Texture texture;
@@ -71,6 +74,26 @@ namespace
         {
             tileset.offsetX = offset->IntAttribute("x", 0);
             tileset.offsetY = offset->IntAttribute("y", 0);
+        }
+
+        if (const char* alignment = root->Attribute("objectalignment"))
+        {
+            static constexpr std::array<std::pair<std::string_view, SDL_FPoint>, 10> alignments{ {
+                { "unspecified", { 0.0f, 1.0f } }, { "topleft", { 0.0f, 0.0f } },
+                { "top", { 0.5f, 0.0f } }, { "topright", { 1.0f, 0.0f } },
+                { "left", { 0.0f, 0.5f } }, { "center", { 0.5f, 0.5f } },
+                { "right", { 1.0f, 0.5f } }, { "bottomleft", { 0.0f, 1.0f } },
+                { "bottom", { 0.5f, 1.0f } }, { "bottomright", { 1.0f, 1.0f } }
+            } };
+            const auto found = std::find_if(alignments.begin(), alignments.end(), [alignment](const auto& entry)
+            {
+                return entry.first == alignment;
+            });
+            if (found == alignments.end())
+            {
+                throw std::runtime_error("Unsupported tileset object alignment: " + std::string(alignment));
+            }
+            tileset.objectAlignment = found->second;
         }
 
         const auto imagePath = (tilesetPath.parent_path() / image->Attribute("source")).lexically_normal();
@@ -134,16 +157,139 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
             return left.firstGid < right.firstGid;
         });
 
+        const auto makeTile = [&tilesets](std::uint32_t rawGid)
+        {
+            const auto gid = rawGid & TileIdMask;
+            auto found = std::upper_bound(tilesets.begin(), tilesets.end(), gid,
+                [](std::uint32_t tileGid, const Tileset& tileset) { return tileGid < tileset.firstGid; });
+            if (found == tilesets.begin())
+            {
+                throw std::runtime_error("Tile GID has no matching tileset");
+            }
+            const Tileset& tileset = *--found;
+            const auto localId = gid - tileset.firstGid;
+            if (localId >= static_cast<std::uint32_t>(tileset.tileCount))
+            {
+                throw std::runtime_error("Tile GID exceeds its tileset tile count");
+            }
+            const float sourceX = static_cast<float>(tileset.margin) +
+                (localId % tileset.columns) * (static_cast<float>(tileset.tileWidth) + tileset.spacing);
+            const float sourceY = static_cast<float>(tileset.margin) +
+                (localId / tileset.columns) * (static_cast<float>(tileset.tileHeight) + tileset.spacing);
+            if (sourceX + tileset.tileWidth > tileset.imageWidth || sourceY + tileset.tileHeight > tileset.imageHeight)
+            {
+                throw std::runtime_error("Tile source rectangle exceeds its atlas image");
+            }
+            Tile tile;
+            tile.texture = tileset.texture.get();
+            tile.source = { sourceX, sourceY, static_cast<float>(tileset.tileWidth), static_cast<float>(tileset.tileHeight) };
+            return std::pair{ tile, &tileset };
+        };
+        const auto appendTile = [this](Tile tile, std::uint32_t rawGid)
+        {
+            const bool horizontal = (rawGid & FlipHorizontal) != 0;
+            const bool vertical = (rawGid & FlipVertical) != 0;
+            if (rawGid & FlipDiagonal)
+            {
+                tile.angle += vertical && !horizontal ? 270.0 : 90.0;
+                if (horizontal && vertical)
+                {
+                    tile.flip = SDL_FLIP_HORIZONTAL;
+                }
+                else if (!horizontal && !vertical)
+                {
+                    tile.flip = SDL_FLIP_VERTICAL;
+                }
+                tile.destination.x += (tile.destination.w - tile.destination.h) * 0.5f;
+                tile.destination.y += (tile.destination.h - tile.destination.w) * 0.5f;
+                std::swap(tile.destination.w, tile.destination.h);
+            }
+            else
+            {
+                tile.flip = static_cast<SDL_FlipMode>((horizontal ? SDL_FLIP_HORIZONTAL : 0) |
+                    (vertical ? SDL_FLIP_VERTICAL : 0));
+            }
+            _tiles.push_back(tile);
+        };
+
         for (const auto& layer : map.at("layers"))
         {
             if (layer.at("type") == "objectgroup")
             {
+                const bool visible = layer.value("visible", true);
+                const float opacity = layer.value("opacity", 1.0f);
+                if (!(opacity >= 0.0f && opacity <= 1.0f))
+                {
+                    throw std::runtime_error("Invalid object layer opacity");
+                }
                 const float offsetX = layer.value("offsetx", 0.0f) + layer.value("x", 0.0f) * tileWidth;
                 const float offsetY = layer.value("offsety", 0.0f) + layer.value("y", 0.0f) * tileHeight;
                 const std::size_t renderLayer = _entityLayers.size();
                 _entityLayers.push_back(_tiles.size());
+                std::vector<const nlohmann::json*> objects;
                 for (const auto& object : layer.at("objects"))
                 {
+                    objects.push_back(&object);
+                }
+                const auto drawOrder = layer.value("draworder", std::string("topdown"));
+                if (drawOrder == "topdown")
+                {
+                    std::stable_sort(objects.begin(), objects.end(), [](const auto* left, const auto* right)
+                    {
+                        return left->value("y", 0.0f) < right->value("y", 0.0f);
+                    });
+                }
+                else if (drawOrder != "index")
+                {
+                    throw std::runtime_error("Unsupported object layer draw order");
+                }
+                for (const auto* entry : objects)
+                {
+                    const auto& object = *entry;
+                    if (object.contains("gid"))
+                    {
+                        if (!visible || !object.value("visible", true))
+                        {
+                            continue;
+                        }
+                        const auto value = object.at("gid").get<std::int64_t>();
+                        if (value < 0 || value > UINT32_MAX)
+                        {
+                            throw std::runtime_error("Tile object GID is out of range");
+                        }
+                        const auto rawGid = static_cast<std::uint32_t>(value);
+                        if ((rawGid & TileIdMask) == 0)
+                        {
+                            continue;
+                        }
+                        auto [tile, tileset] = makeTile(rawGid);
+                        const float width = object.value("width", tile.source.w);
+                        const float height = object.value("height", tile.source.h);
+                        const float originX = object.at("x").get<float>() + offsetX;
+                        const float originY = object.at("y").get<float>() + offsetY;
+                        const float rotation = object.value("rotation", 0.0f);
+                        const float objectOpacity = object.value("opacity", 1.0f);
+                        if (!std::isfinite(width) || !std::isfinite(height) || width <= 0.0f || height <= 0.0f ||
+                            !std::isfinite(originX) || !std::isfinite(originY) || !std::isfinite(rotation) ||
+                            !(objectOpacity >= 0.0f && objectOpacity <= 1.0f))
+                        {
+                            throw std::runtime_error("Invalid tile object geometry or opacity");
+                        }
+                        tile.destination = {
+                            originX - tileset->objectAlignment.x * width + tileset->offsetX * width / tile.source.w,
+                            originY - tileset->objectAlignment.y * height + tileset->offsetY * height / tile.source.h,
+                            width, height
+                        };
+                        const float radians = rotation * std::numbers::pi_v<float> / 180.0f;
+                        const float centerX = tile.destination.x + width * 0.5f - originX;
+                        const float centerY = tile.destination.y + height * 0.5f - originY;
+                        tile.destination.x = originX + std::cos(radians) * centerX - std::sin(radians) * centerY - width * 0.5f;
+                        tile.destination.y = originY + std::sin(radians) * centerX + std::cos(radians) * centerY - height * 0.5f;
+                        tile.opacity = opacity * objectOpacity;
+                        tile.angle = rotation;
+                        appendTile(tile, rawGid);
+                        continue;
+                    }
                     const auto name = object.value("name", std::string{});
                     if (name.empty() || !object.value("point", false))
                     {
@@ -226,59 +372,13 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                         continue;
                     }
 
-                    auto found = std::upper_bound(tilesets.begin(), tilesets.end(), gid,
-                        [](std::uint32_t tileGid, const Tileset& tileset) { return tileGid < tileset.firstGid; });
-                    if (found == tilesets.begin())
-                    {
-                        throw std::runtime_error("Tile GID has no matching tileset");
-                    }
-                    const Tileset& tileset = *--found;
-                    const auto localId = gid - tileset.firstGid;
-                    if (localId >= static_cast<std::uint32_t>(tileset.tileCount))
-                    {
-                        throw std::runtime_error("Tile GID exceeds its tileset tile count");
-                    }
-
-                    const float sourceX = static_cast<float>(tileset.margin) +
-                        (localId % tileset.columns) * (static_cast<float>(tileset.tileWidth) + tileset.spacing);
-                    const float sourceY = static_cast<float>(tileset.margin) +
-                        (localId / tileset.columns) * (static_cast<float>(tileset.tileHeight) + tileset.spacing);
-                    if (sourceX + tileset.tileWidth > tileset.imageWidth || sourceY + tileset.tileHeight > tileset.imageHeight)
-                    {
-                        throw std::runtime_error("Tile source rectangle exceeds its atlas image");
-                    }
-
-                    const float destinationX = static_cast<float>(tileX) * tileWidth + offsetX + tileset.offsetX;
+                    auto [tile, tileset] = makeTile(rawGid);
+                    const float destinationX = static_cast<float>(tileX) * tileWidth + offsetX + tileset->offsetX;
                     const float destinationY = (static_cast<float>(tileY) + 1.0f) * tileHeight + offsetY +
-                        tileset.offsetY - tileset.tileHeight;
-                    Tile tile;
-                    tile.texture = tileset.texture.get();
-                    tile.source = { sourceX, sourceY, static_cast<float>(tileset.tileWidth), static_cast<float>(tileset.tileHeight) };
+                        tileset->offsetY - tileset->tileHeight;
                     tile.destination = { destinationX, destinationY, tile.source.w, tile.source.h };
                     tile.opacity = opacity;
-                    const bool horizontal = (rawGid & FlipHorizontal) != 0;
-                    const bool vertical = (rawGid & FlipVertical) != 0;
-                    if (rawGid & FlipDiagonal)
-                    {
-                        tile.angle = vertical && !horizontal ? 270.0 : 90.0;
-                        if (horizontal && vertical)
-                        {
-                            tile.flip = SDL_FLIP_HORIZONTAL;
-                        }
-                        else if (!horizontal && !vertical)
-                        {
-                            tile.flip = SDL_FLIP_VERTICAL;
-                        }
-                        tile.destination.x += (tile.source.w - tile.source.h) * 0.5f;
-                        tile.destination.y += (tile.source.h - tile.source.w) * 0.5f;
-                        std::swap(tile.destination.w, tile.destination.h);
-                    }
-                    else
-                    {
-                        tile.flip = static_cast<SDL_FlipMode>((horizontal ? SDL_FLIP_HORIZONTAL : 0) |
-                            (vertical ? SDL_FLIP_VERTICAL : 0));
-                    }
-                    _tiles.push_back(tile);
+                    appendTile(tile, rawGid);
                 }
             }
         }

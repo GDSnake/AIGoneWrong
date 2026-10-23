@@ -96,16 +96,20 @@ void Room::handleInput()
 
 void Room::update(float deltaTime)
 {
-    handleInput();
-    Entities::GetInstance().UpdateControllers(*_input);
+    if (_input->shouldQuit())
+    {
+        return;
+    }
+    if (isTransitioning())
+    {
+        Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
+    }
+    else
+    {
+        Entities::GetInstance().UpdateControllers(*_input);
+    }
     Entities::GetInstance().Update(deltaTime);
     _input->update();
-
-    render();
-
-    renderTexts();
-
-    Renderer::getInstance().present();
 }
 
 void Room::render()
@@ -123,6 +127,7 @@ void Room::render()
         Entities::GetInstance().DrawCollisions(renderer, _level.getBounds());
     }
 #endif
+    renderTexts();
 }
 
 void Room::renderTexts()
@@ -157,9 +162,4 @@ void Room::cleanup()
 std::string Room::getName() const
 {
     return "Room";
-}
-
-std::unique_ptr<Scene> Room::getNextScene()
-{
-    return {};
 }

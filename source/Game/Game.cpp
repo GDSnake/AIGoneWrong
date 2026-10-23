@@ -44,6 +44,7 @@ bool Game::init()
     FontsManager::getInstance().load();
     SpriteManager::getInstance().load();
     _currentScene->init();
+    _currentScene->startEntryAnimation();
 
     _lastTime = SDL_GetTicks();
     _isRunning = true;
@@ -138,13 +139,20 @@ void Game::update(float dt)
     _currentScene->handleInput();
     _currentScene->update(dt);
     ParticleSystem::GetInstance().update(dt);
+    _currentScene->updateAnimations(dt);
+    _currentScene->render();
+    _currentScene->renderAnimations();
+    Renderer::getInstance().present();
 
     if (std::unique_ptr<Scene> nextScene = _currentScene->getNextScene())
     {
         //Cleans current scene
         _currentScene->cleanup();
+        ParticleSystem::GetInstance().clearParticles();
         //Releases the current scene and takes ownership of the next scene
         _currentScene = std::move(nextScene);
         _currentScene->init();
+        _currentScene->startEntryAnimation();
+        _lastTime = SDL_GetTicks();
     }
 }
