@@ -48,6 +48,7 @@ public:
     void drawTextureRotated(SDL_Texture* texture, const SDL_FRect& destination,
         const SDL_FRect* source, double angle, SDL_FlipMode flip = SDL_FLIP_NONE, float opacity = 1.0f) const;
     void drawLines(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
+    void drawTriangleFan(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
     void drawOverlay(const SDL_Color& color) const;
     void drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color) const;
     bool getOutputSize(int& width, int& height) const;

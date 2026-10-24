@@ -12,6 +12,7 @@
 #include <box2d/id.h>
 
 #include "Core/ParticleSystem/ParticleSystem.h"
+#include "Entities/Robot.h"
 
 class Sprite;
 class InputManager;
@@ -23,6 +24,7 @@ enum class EntityBehavior : std::uint8_t
   None,
   PlayerInput,
   Door,
+  Robot,
   Count
 };
 
@@ -69,6 +71,7 @@ struct EntityData
     float movementSpeed = 96.0f;
     std::size_t renderLayer = 0;
     EntityDoorSettings door;
+    EntityRobotSettings robot;
 };
 
 struct Entities
@@ -92,6 +95,8 @@ struct Entities
   std::span<const float> GetXPositions() const noexcept;
   std::span<const float> GetYPositions() const noexcept;
   std::span<const std::size_t> GetFrames() const noexcept;
+  std::span<const RobotType> GetRobotTypes() const noexcept;
+  std::span<const VisionState> GetVisionStates() const noexcept;
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
@@ -121,6 +126,9 @@ private:
     void ValidateIndex(std::size_t index) const;
     void UpdatePlayerInput(std::size_t index, const InputManager& input);
     void UpdateDoor(std::size_t index, const InputManager& input);
+    void UpdateRobot(std::size_t index, const InputManager& input);
+    float SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target) const;
+    void RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
 
     std::vector<float> _xEntities;  
     std::vector<float> _yEntities;
@@ -144,6 +152,9 @@ private:
     std::vector<std::size_t> _doorVisualIndices;
     std::vector<bool> _doorOpen;
     std::vector<bool> _doorEntered;
+    std::vector<RobotType> _robotTypes;
+    std::vector<SightDirection> _sightDirections;
+    std::vector<VisionState> _visionStates;
     std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 

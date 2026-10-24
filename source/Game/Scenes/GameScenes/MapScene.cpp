@@ -92,6 +92,32 @@ void MapScene::init()
                 });
             }
         }
+        for (const TiledRobotSpawn& robot : _level.getRobotSpawns())
+        {
+            const RobotProfile& profile = GetRobotProfile(robot.robot.type);
+            auto sprite = SpriteManager::getInstance().getSprite(profile.spriteName);
+            if (!sprite)
+            {
+                throw std::runtime_error("Missing robot sprite: " + std::string(profile.spriteName));
+            }
+            Renderer::getInstance().configureTexture(sprite->getTexture().get());
+            const std::size_t firstFrame = RobotIdleRows[static_cast<std::size_t>(robot.robot.direction)] * 8;
+            Entities::GetInstance().AddEntity({
+                .x = robot.position.x,
+                .y = robot.position.y,
+                .sprite = std::move(sprite),
+                .visible = true,
+                .name = robot.name,
+                .collidable = true,
+                .colliderWidth = profile.colliderWidth,
+                .colliderHeight = profile.colliderHeight,
+                .animation = { firstFrame, 8, firstFrame, 8, 0.12f, 0.12f },
+                .behavior = EntityBehavior::Robot,
+                .movementSpeed = 0.0f,
+                .renderLayer = robot.renderLayer,
+                .robot = robot.robot
+            });
+        }
     }
     catch (const std::exception& error)
     {

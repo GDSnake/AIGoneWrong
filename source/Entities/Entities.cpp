@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -38,6 +39,9 @@ Entities::Entities() : _particleSystem(ParticleSystem::GetInstance())
 	_doorVisualIndices.reserve(baseSize);
 	_doorOpen.reserve(baseSize);
 	_doorEntered.reserve(baseSize);
+	_robotTypes.reserve(baseSize);
+	_sightDirections.reserve(baseSize);
+	_visionStates.reserve(baseSize);
 	ClearEntities();
 }
 
@@ -102,6 +106,9 @@ void Entities::AddEntity(const EntityData& entity)
 		_doorVisualIndices[PlayerIndex] = entity.door.visualIndex;
 		_doorOpen[PlayerIndex] = false;
 		_doorEntered[PlayerIndex] = false;
+		_robotTypes[PlayerIndex] = entity.robot.type;
+		_sightDirections[PlayerIndex] = entity.robot.direction;
+		_visionStates[PlayerIndex] = VisionState::Unaware;
 		return;
 	}
 
@@ -133,6 +140,9 @@ void Entities::AddEntity(const EntityData& entity)
 		_doorVisualIndices.reserve(newCapacity);
 		_doorOpen.reserve(newCapacity);
 		_doorEntered.reserve(newCapacity);
+		_robotTypes.reserve(newCapacity);
+		_sightDirections.reserve(newCapacity);
+		_visionStates.reserve(newCapacity);
 	}
 
 	const b2BodyId body = CreateBody(entity);
@@ -160,6 +170,9 @@ void Entities::AddEntity(const EntityData& entity)
 		_doorVisualIndices.push_back(entity.door.visualIndex);
 		_doorOpen.push_back(false);
 		_doorEntered.push_back(false);
+		_robotTypes.push_back(entity.robot.type);
+		_sightDirections.push_back(entity.robot.direction);
+		_visionStates.push_back(VisionState::Unaware);
 		_nameEntities.try_emplace(entity.name, previousSize);
 	}
 	catch (...)
@@ -186,6 +199,9 @@ void Entities::AddEntity(const EntityData& entity)
 		_doorVisualIndices.resize(previousSize);
 		_doorOpen.resize(previousSize);
 		_doorEntered.resize(previousSize);
+		_robotTypes.resize(previousSize);
+		_sightDirections.resize(previousSize);
+		_visionStates.resize(previousSize);
 		if (b2Body_IsValid(body))
 		{
 			b2DestroyBody(body);
@@ -231,6 +247,9 @@ void Entities::RemoveEntity(const EntityData& entity)
 		_doorVisualIndices[PlayerIndex] = 0;
 		_doorOpen[PlayerIndex] = false;
 		_doorEntered[PlayerIndex] = false;
+		_robotTypes[PlayerIndex] = RobotType::None;
+		_sightDirections[PlayerIndex] = SightDirection::Down;
+		_visionStates[PlayerIndex] = VisionState::Unaware;
 		_nameEntities.erase(found);
 		return;
 	}
@@ -257,6 +276,9 @@ void Entities::RemoveEntity(const EntityData& entity)
 	_doorVisualIndices.erase(_doorVisualIndices.begin() + index);
 	_doorOpen.erase(_doorOpen.begin() + index);
 	_doorEntered.erase(_doorEntered.begin() + index);
+	_robotTypes.erase(_robotTypes.begin() + index);
+	_sightDirections.erase(_sightDirections.begin() + index);
+	_visionStates.erase(_visionStates.begin() + index);
 	_nameEntities.erase(found);
 	for (auto& nameIndex : _nameEntities)
 	{
@@ -281,7 +303,8 @@ void Entities::UpdateEntity(const EntityData& entity)
 	const bool hadBody = b2Body_IsValid(_bodyIds[index]);
 	const bool replaceBody = entity.collidable && (!hadBody ||
 		_colliderSizes[index].x != entity.colliderWidth || _colliderSizes[index].y != entity.colliderHeight ||
-		(_behaviors[index] == EntityBehavior::Door) != (entity.behavior == EntityBehavior::Door));
+		(_behaviors[index] == EntityBehavior::Door) != (entity.behavior == EntityBehavior::Door) ||
+		(_behaviors[index] == EntityBehavior::Robot) != (entity.behavior == EntityBehavior::Robot));
 	const b2BodyId body = replaceBody ? CreateBody(entity) : _bodyIds[index];
 	try
 	{
@@ -328,6 +351,9 @@ void Entities::UpdateEntity(const EntityData& entity)
 	_doorOpenRadii[index] = entity.door.openRadius;
 	_doorEntryBounds[index] = entity.door.entryBounds;
 	_doorVisualIndices[index] = entity.door.visualIndex;
+	_robotTypes[index] = entity.robot.type;
+	_sightDirections[index] = entity.robot.direction;
+	_visionStates[index] = VisionState::Unaware;
 	if (entity.behavior == EntityBehavior::Door && _doorOpen[index])
 	{
 		_frames[index] = 1;
@@ -369,6 +395,9 @@ void Entities::ClearEntities()
 	_doorVisualIndices.assign(PlayerIndex + 1, 0);
 	_doorOpen.assign(PlayerIndex + 1, false);
 	_doorEntered.assign(PlayerIndex + 1, false);
+	_robotTypes.assign(PlayerIndex + 1, RobotType::None);
+	_sightDirections.assign(PlayerIndex + 1, SightDirection::Down);
+	_visionStates.assign(PlayerIndex + 1, VisionState::Unaware);
 	_nameEntities.clear();
 }
 
@@ -402,7 +431,8 @@ EntityData Entities::GetEntity(const std::size_t index) const
 		_behaviors[index],
 		_movementSpeeds[index],
 		_renderLayers[index],
-		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] }
+		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] },
+		{ _robotTypes[index], _sightDirections[index] }
 	};
 }
 
@@ -431,7 +461,8 @@ EntityData Entities::GetEntity(const std::string& name) const
 		_behaviors[index],
 		_movementSpeeds[index],
 		_renderLayers[index],
-		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] }
+		{ _doorOpenRadii[index], _doorEntryBounds[index], _doorVisualIndices[index] },
+		{ _robotTypes[index], _sightDirections[index] }
 	};
 }
 
@@ -539,7 +570,8 @@ b2BodyId Entities::CreateBody(const EntityData& entity)
 		throw std::logic_error("Initialize physics before adding a collidable entity");
 	}
 	b2BodyDef definition = b2DefaultBodyDef();
-	definition.type = entity.behavior == EntityBehavior::Door ? b2_staticBody : b2_dynamicBody;
+	definition.type = entity.behavior == EntityBehavior::Door || entity.behavior == EntityBehavior::Robot
+		? b2_staticBody : b2_dynamicBody;
 	definition.fixedRotation = true;
 	definition.position = { entity.x / PixelsPerMeter,
 		(entity.y - entity.colliderHeight * 0.5f) / PixelsPerMeter };
@@ -547,6 +579,7 @@ b2BodyId Entities::CreateBody(const EntityData& entity)
 	const b2BodyId body = b2CreateBody(_worldId, &definition);
 	b2ShapeDef shape = b2DefaultShapeDef();
 	shape.material.friction = 0.0f;
+	shape.filter.categoryBits = entity.behavior == EntityBehavior::Door ? 1u : 2u;
 	const b2Polygon polygon = b2MakeBox(entity.colliderWidth * 0.5f / PixelsPerMeter,
 		entity.colliderHeight * 0.5f / PixelsPerMeter);
 	b2CreatePolygonShape(body, &shape, &polygon);
@@ -578,7 +611,8 @@ void Entities::UpdateControllers(const InputManager& input)
 	static constexpr std::array<ControllerUpdate, static_cast<std::size_t>(EntityBehavior::Count)> controllers{
 		nullptr,
 		&Entities::UpdatePlayerInput,
-		&Entities::UpdateDoor
+		&Entities::UpdateDoor,
+		&Entities::UpdateRobot
 	};
 	_doorVisualChanges.clear();
 	for (std::size_t index = 0; index < _behaviors.size(); ++index)
@@ -639,6 +673,68 @@ void Entities::UpdateDoor(std::size_t index, const InputManager&)
 		_doorEntered[index] = true;
 		_sceneExitRequested = true;
 	}
+}
+
+float Entities::SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target) const
+{
+	if (!b2World_IsValid(_worldId) || (origin.x == target.x && origin.y == target.y))
+	{
+		return 1.0f;
+	}
+	b2QueryFilter filter = b2DefaultQueryFilter();
+	filter.maskBits = 1u;
+	const b2RayResult result = b2World_CastRayClosest(_worldId,
+		{ origin.x / PixelsPerMeter, origin.y / PixelsPerMeter },
+		{ (target.x - origin.x) / PixelsPerMeter, (target.y - origin.y) / PixelsPerMeter }, filter);
+	return result.hit ? result.fraction : 1.0f;
+}
+
+void Entities::UpdateRobot(std::size_t index, const InputManager&)
+{
+	SetVelocity(index, 0.0f, 0.0f);
+	_facingLeft[index] = false;
+	const auto direction = static_cast<std::size_t>(_sightDirections[index]);
+	const std::size_t firstFrame = RobotIdleRows[direction] * 8;
+	if (_animations[index].idleFirstFrame != firstFrame)
+	{
+		_animations[index] = { firstFrame, 8, firstFrame, 8, 0.12f, 0.12f };
+		_animationTimes[index] = 0.0f;
+		_frames[index] = firstFrame;
+	}
+	_visionStates[index] = VisionState::Unaware;
+	if (!_nameEntities.contains(PlayerName))
+	{
+		return;
+	}
+	const RobotProfile& profile = GetRobotProfile(_robotTypes[index]);
+	const SDL_FPoint origin{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
+	const SDL_FPoint target{ _xEntities[PlayerIndex], _yEntities[PlayerIndex] - _colliderSizes[PlayerIndex].y * 0.5f };
+	const float distanceX = target.x - origin.x;
+	const float distanceY = target.y - origin.y;
+	const float distanceSquared = distanceX * distanceX + distanceY * distanceY;
+	if (distanceSquared > profile.visionRadius * profile.visionRadius)
+	{
+		return;
+	}
+	if (distanceSquared < 0.0001f)
+	{
+		_visionStates[index] = VisionState::Detected;
+		return;
+	}
+	static constexpr std::array<SDL_FPoint, 4> directions{ {
+		{ 0.0f, -1.0f }, { 0.0f, 1.0f }, { -1.0f, 0.0f }, { 1.0f, 0.0f }
+	} };
+	const float distance = std::sqrt(distanceSquared);
+	const SDL_FPoint forward = directions[direction];
+	const float alignment = (distanceX * forward.x + distanceY * forward.y) / distance;
+	const float halfAngle = profile.visionAngleDegrees * std::numbers::pi_v<float> / 360.0f;
+	if (alignment < std::cos(halfAngle) || SightFraction(origin, target) < 0.999f)
+	{
+		return;
+	}
+	const bool edge = alignment < std::cos(halfAngle * profile.edgeFraction) ||
+		distance > profile.visionRadius * profile.edgeFraction;
+	_visionStates[index] = edge ? VisionState::Peripheral : VisionState::Detected;
 }
 
 std::span<const DoorVisualChange> Entities::GetDoorVisualChanges() const noexcept
@@ -722,6 +818,16 @@ std::span<const std::size_t> Entities::GetFrames() const noexcept
 	return _frames;
 }
 
+std::span<const RobotType> Entities::GetRobotTypes() const noexcept
+{
+	return _robotTypes;
+}
+
+std::span<const VisionState> Entities::GetVisionStates() const noexcept
+{
+	return _visionStates;
+}
+
 std::span<const ParticleHandle> Entities::GetParticles(std::size_t index) const
 {
 	ValidateIndex(index);
@@ -736,9 +842,12 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 		return;
 	}
 	const SDL_FRect& source = _spriteEntities[index]->getSourceRect(_frames[index]);
+	const bool robot = _robotTypes[index] != RobotType::None;
+	const float pivotX = robot ? GetRobotProfile(_robotTypes[index]).pivotX : source.w * 0.5f;
+	const float pivotY = robot ? GetRobotProfile(_robotTypes[index]).pivotY : source.h * 0.75f;
 	const SDL_FRect destination{
-		offsetX + (_xEntities[index] - source.w * 0.5f) * scale,
-		offsetY + (_yEntities[index] - source.h * 0.75f) * scale,
+		offsetX + (_xEntities[index] - pivotX) * scale,
+		offsetY + (_yEntities[index] - pivotY) * scale,
 		source.w * scale,
 		source.h * scale
 	};
@@ -748,6 +857,13 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 
 void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const
 {
+	for (std::size_t index = 0; index < _robotTypes.size(); ++index)
+	{
+		if (_renderLayers[index] == layer && _visibilityEntities[index] && _robotTypes[index] != RobotType::None)
+		{
+			RenderVision(index, renderer, scale, offsetX, offsetY);
+		}
+	}
 	for (std::size_t index = 0; index < _spriteEntities.size(); ++index)
 	{
 		if (_renderLayers[index] == layer && _visibilityEntities[index] && _spriteEntities[index])
@@ -755,6 +871,33 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 			RenderEntity(index, renderer, scale, offsetX, offsetY);
 		}
 	}
+}
+
+void Entities::RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const
+{
+	const RobotProfile& profile = GetRobotProfile(_robotTypes[index]);
+	const SDL_FPoint origin{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
+	static constexpr std::array<float, 4> angles{
+		-std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float>, 0.0f
+	};
+	const float halfAngle = profile.visionAngleDegrees * std::numbers::pi_v<float> / 360.0f;
+	const float facing = angles[static_cast<std::size_t>(_sightDirections[index])];
+	constexpr std::size_t segments = 32;
+	std::array<SDL_FPoint, segments + 2> points{};
+	points[0] = { offsetX + origin.x * scale, offsetY + origin.y * scale };
+	for (std::size_t segment = 0; segment <= segments; ++segment)
+	{
+		const float angle = facing - halfAngle + 2.0f * halfAngle * static_cast<float>(segment) / segments;
+		const SDL_FPoint target{ origin.x + std::cos(angle) * profile.visionRadius,
+			origin.y + std::sin(angle) * profile.visionRadius };
+		const float fraction = SightFraction(origin, target);
+		points[segment + 1] = { offsetX + (origin.x + (target.x - origin.x) * fraction) * scale,
+			offsetY + (origin.y + (target.y - origin.y) * fraction) * scale };
+	}
+	static constexpr std::array<SDL_Color, 3> colors{ {
+		{ 50, 210, 100, 70 }, { 245, 195, 50, 80 }, { 235, 65, 65, 85 }
+	} };
+	renderer.drawTriangleFan(points, colors[static_cast<std::size_t>(_visionStates[index])]);
 }
 
 #ifdef DEBUG
@@ -800,6 +943,15 @@ void Entities::DrawCollisions(const Renderer& renderer, const RenderView& view) 
 
 void Entities::ValidateEntity(const EntityData& entity) const
 {
+	if (entity.behavior == EntityBehavior::Robot || entity.robot.type != RobotType::None)
+	{
+		if (entity.behavior != EntityBehavior::Robot || entity.name == PlayerName || !entity.collidable ||
+			entity.robot.type == RobotType::None || entity.robot.type >= RobotType::Count ||
+			entity.robot.direction >= SightDirection::Count || !entity.sprite || entity.sprite->getFrameCount() < 64)
+		{
+			throw std::invalid_argument("Robot entities need a valid type, facing direction, collider, and directional sprite sheet");
+		}
+	}
 	if (entity.behavior == EntityBehavior::Door)
 	{
 		const SDL_FRect& entry = entity.door.entryBounds;

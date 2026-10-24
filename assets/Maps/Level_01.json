@@ -151,6 +151,55 @@
          "y":0
         }, 
         {
+         "draworder":"topdown",
+         "id":8,
+         "name":"Robots",
+         "objects":[
+                {
+                 "height":0,
+                 "id":2,
+                 "name":"Scout_01",
+                 "opacity":1,
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"right"
+                        }],
+                 "rotation":0,
+                 "type":"ScoutBot",
+                 "visible":true,
+                 "width":0,
+                 "x":115.732837088879,
+                 "y":212.824143371496
+                }, 
+                {
+                 "height":0,
+                 "id":3,
+                 "name":"Trooper_01",
+                 "opacity":1,
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"left"
+                        }],
+                 "rotation":0,
+                 "type":"TrooperBot",
+                 "visible":true,
+                 "width":0,
+                 "x":461.377887454994,
+                 "y":368.946963873943
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
          "data":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -181,8 +230,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":8,
- "nextobjectid":2,
+ "nextlayerid":9,
+ "nextobjectid":4,
  "orientation":"orthogonal",
  "renderorder":"left-down",
  "tiledversion":"1.12.2",

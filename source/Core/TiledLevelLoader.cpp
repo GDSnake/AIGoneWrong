@@ -415,6 +415,31 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                 {
                     const auto& object = *entry;
                     const auto objectClass = object.value("class", object.value("type", std::string{}));
+                    if (objectClass == "ScoutBot" || objectClass == "TrooperBot")
+                    {
+                        const auto name = object.value("name", std::string{});
+                        const SDL_FPoint position{ object.at("x").get<float>() + offsetX,
+                            object.at("y").get<float>() + offsetY };
+                        if (name.empty() || !object.value("point", false) || object.contains("gid") ||
+                            !std::isfinite(position.x) || !std::isfinite(position.y) ||
+                            std::any_of(_robotSpawns.begin(), _robotSpawns.end(), [&name](const TiledRobotSpawn& spawn)
+                                { return spawn.name == name; }))
+                        {
+                            throw std::runtime_error("Robot spawns must be named, unique Tiled point objects with finite positions");
+                        }
+                        const auto* directionProperty = propertyValue(object, "direction");
+                        const auto direction = directionProperty ? directionProperty->get<std::string>() : std::string("down");
+                        static constexpr std::array<std::string_view, 4> directions{ "up", "down", "left", "right" };
+                        const auto found = std::find(directions.begin(), directions.end(), direction);
+                        if (found == directions.end())
+                        {
+                            throw std::runtime_error("Robot direction must be up, down, left, or right: " + name);
+                        }
+                        const RobotType type = objectClass == "ScoutBot" ? RobotType::ScoutBot : RobotType::TrooperBot;
+                        _robotSpawns.push_back({ name, position,
+                            { type, static_cast<SightDirection>(std::distance(directions.begin(), found)) }, renderLayer });
+                        continue;
+                    }
                     if (objectClass == "DoorEntry")
                     {
                         const auto* door = propertyValue(object, "door");
@@ -732,6 +757,11 @@ void TiledLevelLoader::setDoorFrame(std::size_t index, SDL_Texture* texture, con
     tile.source = source;
 }
 
+std::span<const TiledRobotSpawn> TiledLevelLoader::getRobotSpawns() const noexcept
+{
+    return _robotSpawns;
+}
+
 std::span<const SDL_FRect> TiledLevelLoader::getCollisions() const noexcept
 {
     return _collisions;
@@ -755,6 +785,7 @@ void TiledLevelLoader::clear()
     _frameCollisions.clear();
     _spawns.clear();
     _doors.clear();
+    _robotSpawns.clear();
     _doorTileIndices.clear();
     _entityLayers.clear();
     _width = 0.0f;

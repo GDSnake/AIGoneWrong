@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "Config/Config.h"
 
@@ -126,6 +127,36 @@ void Renderer::drawLines(std::span<const SDL_FPoint> points, const SDL_Color& co
     setDrawColor(color);
     SDL_RenderLines(_renderer, points.data(), static_cast<int>(points.size()));
     setDrawColor(previousColor);
+}
+
+void Renderer::drawTriangleFan(std::span<const SDL_FPoint> points, const SDL_Color& color) const
+{
+    if (!_renderer || points.size() < 3 || color.a == 0)
+    {
+        return;
+    }
+    SDL_BlendMode previousBlendMode;
+    if (!SDL_GetRenderDrawBlendMode(_renderer, &previousBlendMode))
+    {
+        return;
+    }
+    const SDL_FColor vertexColor{ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
+    std::vector<SDL_Vertex> vertices;
+    std::vector<int> indices;
+    vertices.reserve(points.size());
+    indices.reserve((points.size() - 2) * 3);
+    for (const SDL_FPoint& point : points)
+    {
+        vertices.push_back({ point, vertexColor, { 0.0f, 0.0f } });
+    }
+    for (std::size_t index = 1; index + 1 < points.size(); ++index)
+    {
+        indices.insert(indices.end(), { 0, static_cast<int>(index), static_cast<int>(index + 1) });
+    }
+    SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
+    SDL_RenderGeometry(_renderer, nullptr, vertices.data(), static_cast<int>(vertices.size()),
+        indices.data(), static_cast<int>(indices.size()));
+    SDL_SetRenderDrawBlendMode(_renderer, previousBlendMode);
 }
 
 void Renderer::drawOverlay(const SDL_Color& color) const

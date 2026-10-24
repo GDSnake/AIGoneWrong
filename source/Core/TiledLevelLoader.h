@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Renderer.h"
+#include "Entities/Robot.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -28,6 +29,14 @@ struct TiledDoor
     std::size_t renderLayer = 0;
 };
 
+struct TiledRobotSpawn
+{
+    std::string name;
+    SDL_FPoint position{};
+    EntityRobotSettings robot;
+    std::size_t renderLayer = 0;
+};
+
 class TiledLevelLoader
 {
 public:
@@ -37,6 +46,7 @@ public:
     std::optional<TiledSpawnPoint> getSpawn(std::string_view name) const;
     std::span<const TiledSpawnPoint> getSpawns() const noexcept;
     std::span<const TiledDoor> getDoors() const noexcept;
+    std::span<const TiledRobotSpawn> getRobotSpawns() const noexcept;
     void setDoorFrame(std::size_t index, SDL_Texture* texture, const SDL_FRect& source);
     std::span<const SDL_FRect> getCollisions() const noexcept;
     std::span<const std::vector<SDL_FPoint>> getFrameCollisions() const noexcept;
@@ -60,6 +70,7 @@ private:
     std::vector<std::vector<SDL_FPoint>> _frameCollisions;
     std::vector<TiledSpawnPoint> _spawns;
     std::vector<TiledDoor> _doors;
+    std::vector<TiledRobotSpawn> _robotSpawns;
     std::vector<std::size_t> _doorTileIndices;
     std::vector<std::size_t> _entityLayers;
     float _width = 0.0f;
