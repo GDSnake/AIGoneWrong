@@ -39,6 +39,7 @@ public:
     std::span<const TiledDoor> getDoors() const noexcept;
     void setDoorFrame(std::size_t index, SDL_Texture* texture, const SDL_FRect& source);
     std::span<const SDL_FRect> getCollisions() const noexcept;
+    std::span<const std::vector<SDL_FPoint>> getFrameCollisions() const noexcept;
     SDL_FRect getBounds() const noexcept;
     void clear();
 
@@ -56,6 +57,7 @@ private:
     std::vector<Renderer::Texture> _textures;
     std::vector<Tile> _tiles;
     std::vector<SDL_FRect> _collisions;
+    std::vector<std::vector<SDL_FPoint>> _frameCollisions;
     std::vector<TiledSpawnPoint> _spawns;
     std::vector<TiledDoor> _doors;
     std::vector<std::size_t> _doorTileIndices;

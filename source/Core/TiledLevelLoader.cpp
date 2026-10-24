@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 #include <tinyxml2.h>
+#include <mapbox/earcut.hpp>
 
 #include <algorithm>
 #include <array>
@@ -10,9 +11,11 @@
 #include <fstream>
 #include <iostream>
 #include <numbers>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <unordered_map>
 
 namespace
 {
@@ -20,6 +23,126 @@ namespace
     constexpr std::uint32_t FlipVertical = 0x40000000u;
     constexpr std::uint32_t FlipDiagonal = 0x20000000u;
     constexpr std::uint32_t TileIdMask = 0x0fffffffu;
+
+    using CollisionPolygon = std::vector<SDL_FPoint>;
+    using CollisionParts = std::vector<CollisionPolygon>;
+
+    float collisionAttribute(const tinyxml2::XMLElement& object, const char* name)
+    {
+        float value = 0.0f;
+        if (object.Attribute(name) &&
+            (object.QueryFloatAttribute(name, &value) != tinyxml2::XML_SUCCESS || !std::isfinite(value)))
+        {
+            throw std::runtime_error("Invalid tile collision attribute: " + std::string(name));
+        }
+        return value;
+    }
+
+    CollisionParts loadCollisionParts(const tinyxml2::XMLElement& object)
+    {
+        if (object.FirstChildElement("ellipse") || object.FirstChildElement("point") ||
+            object.FirstChildElement("polyline") || object.FirstChildElement("text") || object.Attribute("gid"))
+        {
+            throw std::runtime_error("Tile collision shapes must be rectangles or simple polygons");
+        }
+
+        CollisionPolygon vertices;
+        const auto* polygon = object.FirstChildElement("polygon");
+        if (polygon)
+        {
+            const char* coordinates = polygon->Attribute("points");
+            if (!coordinates)
+            {
+                throw std::runtime_error("Tile collision polygon is missing its points");
+            }
+            std::istringstream points(coordinates);
+            while (points >> std::ws && !points.eof())
+            {
+                SDL_FPoint vertex;
+                char separator = 0;
+                if (!(points >> vertex.x >> separator >> vertex.y) || separator != ',' ||
+                    !std::isfinite(vertex.x) || !std::isfinite(vertex.y))
+                {
+                    throw std::runtime_error("Invalid tile collision polygon coordinates");
+                }
+                vertices.push_back(vertex);
+            }
+            if (vertices.size() > 3 && vertices.front().x == vertices.back().x && vertices.front().y == vertices.back().y)
+            {
+                vertices.pop_back();
+            }
+            if (vertices.size() < 3)
+            {
+                throw std::runtime_error("Tile collision polygon needs at least three points");
+            }
+        }
+        else
+        {
+            const float width = collisionAttribute(object, "width");
+            const float height = collisionAttribute(object, "height");
+            if (width <= 0.0f || height <= 0.0f)
+            {
+                throw std::runtime_error("Tile collision rectangle dimensions must be positive");
+            }
+            vertices = { { 0.0f, 0.0f }, { width, 0.0f }, { width, height }, { 0.0f, height } };
+        }
+
+        const float offsetX = collisionAttribute(object, "x");
+        const float offsetY = collisionAttribute(object, "y");
+        const float angle = collisionAttribute(object, "rotation") * std::numbers::pi_v<float> / 180.0f;
+        const float cosine = std::cos(angle);
+        const float sine = std::sin(angle);
+        for (SDL_FPoint& vertex : vertices)
+        {
+            const float localX = vertex.x;
+            const float localY = vertex.y;
+            vertex = { offsetX + cosine * localX - sine * localY, offsetY + sine * localX + cosine * localY };
+            if (!std::isfinite(vertex.x) || !std::isfinite(vertex.y))
+            {
+                throw std::runtime_error("Tile collision coordinates are out of range");
+            }
+        }
+        if (!polygon)
+        {
+            return { std::move(vertices) };
+        }
+
+        std::vector<std::vector<std::array<double, 2>>> rings(1);
+        double polygonArea = 0.0;
+        for (std::size_t index = 0; index < vertices.size(); ++index)
+        {
+            const SDL_FPoint& vertex = vertices[index];
+            const SDL_FPoint& next = vertices[(index + 1) % vertices.size()];
+            rings.front().push_back({ vertex.x, vertex.y });
+            polygonArea += static_cast<double>(vertex.x) * next.y - static_cast<double>(vertex.y) * next.x;
+        }
+        polygonArea = std::abs(polygonArea) * 0.5;
+        const auto indices = mapbox::earcut<std::uint32_t>(rings);
+        if (indices.empty() || indices.size() % 3 != 0 || polygonArea <= 0.0001)
+        {
+            throw std::runtime_error("Tile collision polygon must be simple and have a positive area");
+        }
+        CollisionParts parts;
+        double triangleArea = 0.0;
+        for (std::size_t index = 0; index < indices.size(); index += 3)
+        {
+            CollisionPolygon triangle{ vertices.at(indices[index]), vertices.at(indices[index + 1]), vertices.at(indices[index + 2]) };
+            const double area = std::abs((static_cast<double>(triangle[1].x) - triangle[0].x) *
+                (static_cast<double>(triangle[2].y) - triangle[0].y) -
+                (static_cast<double>(triangle[1].y) - triangle[0].y) *
+                (static_cast<double>(triangle[2].x) - triangle[0].x)) * 0.5;
+            if (area > 0.0001)
+            {
+                triangleArea += area;
+                parts.push_back(std::move(triangle));
+            }
+        }
+        if (parts.empty() || std::abs(triangleArea - polygonArea) > std::max(0.0001, polygonArea * 0.0001))
+        {
+            throw std::runtime_error("Tile collision polygon could not be triangulated without changing its area");
+        }
+        return parts;
+    }
 
     struct Tileset
     {
@@ -36,6 +159,7 @@ namespace
         float imageWidth = 0.0f;
         float imageHeight = 0.0f;
         Renderer::Texture texture;
+        std::unordered_map<std::uint32_t, CollisionParts> collisions;
     };
 
     Tileset loadTileset(const nlohmann::json& entry, const std::filesystem::path& mapPath,
@@ -94,6 +218,28 @@ namespace
                 throw std::runtime_error("Unsupported tileset object alignment: " + std::string(alignment));
             }
             tileset.objectAlignment = found->second;
+        }
+
+        for (const auto* tile = root->FirstChildElement("tile"); tile; tile = tile->NextSiblingElement("tile"))
+        {
+            const auto* objects = tile->FirstChildElement("objectgroup");
+            if (!objects)
+            {
+                continue;
+            }
+            int tileId = -1;
+            if (tile->QueryIntAttribute("id", &tileId) != tinyxml2::XML_SUCCESS || tileId < 0 || tileId >= tileset.tileCount)
+            {
+                throw std::runtime_error("Invalid collision tile ID in tileset: " + tilesetPath.string());
+            }
+            auto& parts = tileset.collisions[static_cast<std::uint32_t>(tileId)];
+            for (const auto* object = objects->FirstChildElement("object"); object; object = object->NextSiblingElement("object"))
+            {
+                for (auto& part : loadCollisionParts(*object))
+                {
+                    parts.push_back(std::move(part));
+                }
+            }
         }
 
         const auto imagePath = (tilesetPath.parent_path() / image->Attribute("source")).lexically_normal();
@@ -369,7 +515,8 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
 
             const bool visible = layer.value("visible", true);
             const bool collisionLayer = layer.value("name", std::string{}) == "collision";
-            if (!visible && !collisionLayer)
+            const bool frameCollisionLayer = layer.value("name", std::string{}) == "collision_in_frame";
+            if (!visible && !collisionLayer && !frameCollisionLayer)
             {
                 continue;
             }
@@ -423,7 +570,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                             static_cast<float>(tileY) * tileHeight + offsetY,
                             static_cast<float>(tileWidth), static_cast<float>(tileHeight) });
                     }
-                    if (!visible)
+                    if (!visible && !frameCollisionLayer)
                     {
                         continue;
                     }
@@ -432,6 +579,42 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                     const float destinationX = static_cast<float>(tileX) * tileWidth + offsetX + tileset->offsetX;
                     const float destinationY = (static_cast<float>(tileY) + 1.0f) * tileHeight + offsetY +
                         tileset->offsetY - tileset->tileHeight;
+                    if (frameCollisionLayer)
+                    {
+                        const auto shapes = tileset->collisions.find(gid - tileset->firstGid);
+                        if (shapes != tileset->collisions.end())
+                        {
+                            for (const auto& shape : shapes->second)
+                            {
+                                CollisionPolygon vertices;
+                                vertices.reserve(shape.size());
+                                for (const SDL_FPoint& vertex : shape)
+                                {
+                                    float unitX = vertex.x / static_cast<float>(tileset->tileWidth);
+                                    float unitY = vertex.y / static_cast<float>(tileset->tileHeight);
+                                    if (rawGid & FlipDiagonal)
+                                    {
+                                        std::swap(unitX, unitY);
+                                    }
+                                    if (rawGid & FlipHorizontal)
+                                    {
+                                        unitX = 1.0f - unitX;
+                                    }
+                                    if (rawGid & FlipVertical)
+                                    {
+                                        unitY = 1.0f - unitY;
+                                    }
+                                    vertices.push_back({ destinationX + unitX * tileset->tileWidth,
+                                        destinationY + unitY * tileset->tileHeight });
+                                }
+                                _frameCollisions.push_back(std::move(vertices));
+                            }
+                        }
+                    }
+                    if (!visible)
+                    {
+                        continue;
+                    }
                     tile.destination = { destinationX, destinationY, tile.source.w, tile.source.h };
                     tile.opacity = opacity;
                     appendTile(tile, rawGid);
@@ -560,6 +743,11 @@ std::span<const SDL_FRect> TiledLevelLoader::getCollisions() const noexcept
     return _collisions;
 }
 
+std::span<const std::vector<SDL_FPoint>> TiledLevelLoader::getFrameCollisions() const noexcept
+{
+    return _frameCollisions;
+}
+
 SDL_FRect TiledLevelLoader::getBounds() const noexcept
 {
     return { 0.0f, 0.0f, _width, _height };
@@ -570,6 +758,7 @@ void TiledLevelLoader::clear()
     _tiles.clear();
     _textures.clear();
     _collisions.clear();
+    _frameCollisions.clear();
     _spawns.clear();
     _doors.clear();
     _doorTileIndices.clear();

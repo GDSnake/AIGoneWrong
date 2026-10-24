@@ -81,7 +81,8 @@ struct Entities
   Entities(const Entities&) = delete;
   Entities& operator=(const Entities&) = delete;
 
-  void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds);
+  void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
+      std::span<const std::vector<SDL_FPoint>> frameCollisions = {});
   void SetVelocity(std::size_t index, float velocityX, float velocityY);
   void UpdateControllers(const InputManager& input);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
@@ -114,6 +115,7 @@ private:
     ~Entities();
     b2BodyId CreateBody(const EntityData& entity);
     void CreateStaticCollider(const SDL_FRect& bounds);
+    void CreateStaticCollider(std::span<const SDL_FPoint> vertices);
     void ValidateEntity(const EntityData& entity) const;
     void ValidateIndex(std::size_t index) const;
     void UpdatePlayerInput(std::size_t index, const InputManager& input);

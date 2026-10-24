@@ -37,7 +37,7 @@ void MapScene::init()
     }
     try
     {
-        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds());
+        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions());
         auto sprite = SpriteManager::getInstance().getSprite("player");
         if (!sprite)
         {

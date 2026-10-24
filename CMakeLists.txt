@@ -78,6 +78,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tinyxml2)
 target_link_libraries(${PROJECT_NAME} PRIVATE tinyxml2::tinyxml2)
 
+FetchContent_Declare(
+    earcut
+    URL https://github.com/mapbox/earcut.hpp/archive/refs/tags/v2.2.4.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR include
+)
+FetchContent_MakeAvailable(earcut)
+target_include_directories(${PROJECT_NAME} PRIVATE "${earcut_SOURCE_DIR}/include")
+
 if(WIN32)
     function(download_sdl_package package version archive_prefix root config_file)
         if(EXISTS "${root}/cmake/${config_file}")

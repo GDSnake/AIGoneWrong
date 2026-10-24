@@ -127,18 +127,6 @@
                  "y":95.0064
                 }, 
                 {
-                 "height":32.2159,
-                 "id":4,
-                 "name":"",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":25.6412,
-                 "x":143.328,
-                 "y":52.5973
-                }, 
-                {
                  "height":47.9951,
                  "id":7,
                  "name":"Door_1_Enter",
@@ -155,18 +143,6 @@
                  "width":34.1883,
                  "x":147.273,
                  "y":49.9675
-                }, 
-                {
-                 "height":0,
-                 "id":8,
-                 "name":"",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":124.261,
-                 "y":340.568
                 }],
          "opacity":1,
          "type":"objectgroup",

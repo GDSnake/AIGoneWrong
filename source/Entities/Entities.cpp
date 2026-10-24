@@ -435,7 +435,8 @@ EntityData Entities::GetEntity(const std::string& name) const
 	};
 }
 
-void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds)
+void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
+	std::span<const std::vector<SDL_FPoint>> frameCollisions)
 {
 	if (!_nameEntities.empty())
 	{
@@ -455,6 +456,10 @@ void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SD
 		for (const SDL_FRect& collision : collisions)
 		{
 			CreateStaticCollider(collision);
+		}
+		for (const auto& vertices : frameCollisions)
+		{
+			CreateStaticCollider(vertices);
 		}
 		CreateStaticCollider({ bounds.x - PixelsPerMeter, bounds.y - PixelsPerMeter,
 			bounds.w + 2.0f * PixelsPerMeter, PixelsPerMeter });
@@ -484,6 +489,42 @@ void Entities::CreateStaticCollider(const SDL_FRect& bounds)
 	b2ShapeDef shape = b2DefaultShapeDef();
 	shape.material.friction = 0.0f;
 	const b2Polygon polygon = b2MakeBox(bounds.w * 0.5f / PixelsPerMeter, bounds.h * 0.5f / PixelsPerMeter);
+	b2CreatePolygonShape(body, &shape, &polygon);
+}
+
+void Entities::CreateStaticCollider(std::span<const SDL_FPoint> vertices)
+{
+	if (vertices.size() < 3 || vertices.size() > B2_MAX_POLYGON_VERTICES)
+	{
+		throw std::invalid_argument("A convex static collider needs three to eight vertices");
+	}
+	SDL_FPoint center{};
+	for (const SDL_FPoint& vertex : vertices)
+	{
+		if (!std::isfinite(vertex.x) || !std::isfinite(vertex.y))
+		{
+			throw std::invalid_argument("Static collider vertices must be finite");
+		}
+		center.x += vertex.x / static_cast<float>(vertices.size());
+		center.y += vertex.y / static_cast<float>(vertices.size());
+	}
+	std::array<b2Vec2, B2_MAX_POLYGON_VERTICES> points{};
+	for (std::size_t index = 0; index < vertices.size(); ++index)
+	{
+		points[index] = { (vertices[index].x - center.x) / PixelsPerMeter,
+			(vertices[index].y - center.y) / PixelsPerMeter };
+	}
+	const b2Hull hull = b2ComputeHull(points.data(), static_cast<int>(vertices.size()));
+	if (hull.count < 3)
+	{
+		throw std::invalid_argument("Static collider polygon is degenerate or too small for physics");
+	}
+	b2BodyDef definition = b2DefaultBodyDef();
+	definition.position = { center.x / PixelsPerMeter, center.y / PixelsPerMeter };
+	const b2BodyId body = b2CreateBody(_worldId, &definition);
+	b2ShapeDef shape = b2DefaultShapeDef();
+	shape.material.friction = 0.0f;
+	const b2Polygon polygon = b2MakePolygon(&hull, 0.0f);
 	b2CreatePolygonShape(body, &shape, &polygon);
 }
 
