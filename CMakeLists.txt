@@ -190,7 +190,12 @@ add_custom_target(${PROJECT_NAME}Config ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CONFIG_FILE}"
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-    DEPENDS "${CONFIG_FILE}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Config"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/Config/robotProperties.json"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Config/robotProperties.json"
+    DEPENDS "${CONFIG_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/Config/robotProperties.json"
     VERBATIM
 )
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}Config)

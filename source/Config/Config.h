@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -13,6 +15,8 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+#include "Types/RobotTypes.h"
 
 using json = nlohmann::json;
 
@@ -73,6 +77,7 @@ struct ConfigData {
     std::unordered_map<std::string, ImageSheetConfigData> imageSheets;
     std::unordered_map<std::string, std::string> fonts;
     std::unordered_map<std::string, std::string> audio;
+    std::array<RobotProfile, static_cast<std::size_t>(RobotType::Count)> robotProfiles{};
 };
 
 class Config
@@ -92,6 +97,11 @@ public:
     const ConfigData& getConfigData() const noexcept
     {
         return _data;
+    }
+
+    const RobotProfile& getRobotProfile(RobotType type) const
+    {
+        return _data.robotProfiles.at(static_cast<std::size_t>(type));
     }
 
     inline void setWindowSettings(int width, int height, bool fullscreen) noexcept
@@ -309,6 +319,7 @@ public:
                 cfg.fonts[fontName] = font->get<std::string>();
             }
 
+            loadRobotProperties(cfg);
             _data = std::move(cfg);
         }
         catch (const std::exception& error)
@@ -319,6 +330,57 @@ public:
         }
     }
 private:
+    static void loadRobotProperties(ConfigData& cfg)
+    {
+        const auto path = std::filesystem::current_path() / "Config" / "robotProperties.json";
+        std::ifstream file(path);
+        if (!file)
+        {
+            throw std::runtime_error(std::format("Cannot open {}", path.generic_string()));
+        }
+        const json data = json::parse(file);
+        if (!data.is_object())
+        {
+            throw std::runtime_error("The root of Config/robotProperties.json must be an object");
+        }
+
+        constexpr std::array robotNames{ "ScoutBot", "TrooperBot" };
+        static_assert(robotNames.size() + 1 == static_cast<std::size_t>(RobotType::Count));
+        for (std::size_t index = 0; index < robotNames.size(); ++index)
+        {
+            const char* name = robotNames[index];
+            const json& entry = data.at(name);
+            if (!entry.is_object())
+            {
+                throw std::runtime_error(std::format("Config/robotProperties.json: {} must be an object", name));
+            }
+            RobotProfile profile{
+                .spriteName = entry.at("spriteName").get<std::string>(),
+                .spriteScale = entry.at("spriteScale").get<float>(),
+                .visionAngleDegrees = entry.at("visionAngleDegrees").get<float>(),
+                .visionRadius = entry.at("visionRadius").get<float>(),
+                .edgeFraction = entry.at("edgeFraction").get<float>(),
+                .colliderWidth = entry.at("colliderWidth").get<float>(),
+                .colliderHeight = entry.at("colliderHeight").get<float>(),
+                .pivotX = entry.at("pivotX").get<float>(),
+                .pivotY = entry.at("pivotY").get<float>()
+            };
+            const auto positive = [](float value) { return std::isfinite(value) && value > 0.0f; };
+            if (!positive(profile.spriteScale) || !positive(profile.visionAngleDegrees) || profile.visionAngleDegrees > 360.0f ||
+                !positive(profile.visionRadius) || !positive(profile.edgeFraction) || profile.edgeFraction > 1.0f ||
+                !positive(profile.colliderWidth) || !positive(profile.colliderHeight) ||
+                !std::isfinite(profile.pivotX) || !std::isfinite(profile.pivotY))
+            {
+                throw std::runtime_error(std::format("Config/robotProperties.json: invalid {} properties; scale, angle, radius and collider sizes must be positive, angle <= 360, edgeFraction in (0, 1], and pivots finite", name));
+            }
+            if (!cfg.imageSheets.contains(profile.spriteName))
+            {
+                throw std::runtime_error(std::format("Config/robotProperties.json: {} references an unknown sprite sheet '{}'", name, profile.spriteName));
+            }
+            cfg.robotProfiles[index + 1] = std::move(profile);
+        }
+    }
+
     Config() = default;
 
     ~Config() = default;

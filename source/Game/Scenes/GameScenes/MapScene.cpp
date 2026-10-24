@@ -9,6 +9,7 @@
 #include "AssetManagers/FontsManager.h"
 #include "AssetManagers/SpriteManager.h"
 
+#include "Config/Config.h"
 #include "Core/Renderer.h"
 #include "Entities/Entities.h"
 #include "Entities/Sprite.h"
@@ -94,7 +95,7 @@ void MapScene::init()
         }
         for (const TiledRobotSpawn& robot : _level.getRobotSpawns())
         {
-            const RobotProfile& profile = GetRobotProfile(robot.robot.type);
+            const RobotProfile& profile = Config::getInstance().getRobotProfile(robot.robot.type);
             auto sprite = SpriteManager::getInstance().getSprite(profile.spriteName);
             if (!sprite)
             {
@@ -109,8 +110,8 @@ void MapScene::init()
                 .visible = true,
                 .name = robot.name,
                 .collidable = true,
-                .colliderWidth = profile.colliderWidth,
-                .colliderHeight = profile.colliderHeight,
+                .colliderWidth = profile.colliderWidth * profile.spriteScale,
+                .colliderHeight = profile.colliderHeight * profile.spriteScale,
                 .animation = { firstFrame, 8, firstFrame, 8, 0.12f, 0.12f },
                 .behavior = EntityBehavior::Robot,
                 .movementSpeed = 0.0f,
@@ -175,7 +176,16 @@ void MapScene::update(float deltaTime)
             _level.setDoorFrame(change.visualIndex, _doorSprite->getTexture().get(),
                 _doorSprite->getSourceRect(change.frameIndex));
         }
-        if (Entities::GetInstance().ConsumeSceneExitRequest())
+        const auto endTrigger = _level.getSpawn("triggerEndLevel");
+        bool reachedEnd = false;
+        if (endTrigger)
+        {
+            const float distanceX = Entities::GetInstance().GetXPositions()[Entities::PlayerIndex] - endTrigger->position.x;
+            const float distanceY = Entities::GetInstance().GetYPositions()[Entities::PlayerIndex] - endTrigger->position.y;
+            constexpr float triggerRadius = 16.0f;
+            reachedEnd = distanceX * distanceX + distanceY * distanceY <= triggerRadius * triggerRadius;
+        }
+        if (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd)
         {
             auto nextScene = createExitScene();
             const bool requested = nextScene ? transitionTo(std::move(nextScene)) : requestExit();

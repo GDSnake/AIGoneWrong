@@ -1,0 +1,24 @@
+{
+    "ScoutBot": {
+        "spriteName": "ScoutBot",
+        "spriteScale": 0.75,
+        "visionAngleDegrees": 45.0,
+        "visionRadius": 100.0,
+        "edgeFraction": 0.8,
+        "colliderWidth": 14.0,
+        "colliderHeight": 8.0,
+        "pivotX": 32.0,
+        "pivotY": 53.0
+    },
+    "TrooperBot": {
+        "spriteName": "TrooperBot",
+        "spriteScale": 0.75,
+        "visionAngleDegrees": 70.0,
+        "visionRadius": 100.0,
+        "edgeFraction": 0.8,
+        "colliderWidth": 16.0,
+        "colliderHeight": 10.0,
+        "pivotX": 32.0,
+        "pivotY": 53.0
+    }
+}

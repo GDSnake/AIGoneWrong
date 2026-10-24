@@ -706,7 +706,7 @@ void Entities::UpdateRobot(std::size_t index, const InputManager&)
 	{
 		return;
 	}
-	const RobotProfile& profile = GetRobotProfile(_robotTypes[index]);
+	const RobotProfile& profile = Config::getInstance().getRobotProfile(_robotTypes[index]);
 	const SDL_FPoint origin{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
 	const SDL_FPoint target{ _xEntities[PlayerIndex], _yEntities[PlayerIndex] - _colliderSizes[PlayerIndex].y * 0.5f };
 	const float distanceX = target.x - origin.x;
@@ -842,14 +842,16 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 		return;
 	}
 	const SDL_FRect& source = _spriteEntities[index]->getSourceRect(_frames[index]);
-	const bool robot = _robotTypes[index] != RobotType::None;
-	const float pivotX = robot ? GetRobotProfile(_robotTypes[index]).pivotX : source.w * 0.5f;
-	const float pivotY = robot ? GetRobotProfile(_robotTypes[index]).pivotY : source.h * 0.75f;
+	const RobotProfile* profile = _robotTypes[index] != RobotType::None ?
+		&Config::getInstance().getRobotProfile(_robotTypes[index]) : nullptr;
+	const float spriteScale = profile ? profile->spriteScale : 1.0f;
+	const float pivotX = profile ? profile->pivotX : source.w * 0.5f;
+	const float pivotY = profile ? profile->pivotY : source.h * 0.75f;
 	const SDL_FRect destination{
-		offsetX + (_xEntities[index] - pivotX) * scale,
-		offsetY + (_yEntities[index] - pivotY) * scale,
-		source.w * scale,
-		source.h * scale
+		offsetX + (_xEntities[index] - pivotX * spriteScale) * scale,
+		offsetY + (_yEntities[index] - pivotY * spriteScale) * scale,
+		source.w * spriteScale * scale,
+		source.h * spriteScale * scale
 	};
 	renderer.drawTextureRotated(_spriteEntities[index]->getTexture().get(), destination, &source,
 		0.0, _facingLeft[index] ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
@@ -875,7 +877,7 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 
 void Entities::RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const
 {
-	const RobotProfile& profile = GetRobotProfile(_robotTypes[index]);
+	const RobotProfile& profile = Config::getInstance().getRobotProfile(_robotTypes[index]);
 	const SDL_FPoint origin{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
 	static constexpr std::array<float, 4> angles{
 		-std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float>, 0.0f
