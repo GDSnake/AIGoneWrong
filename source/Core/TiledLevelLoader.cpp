@@ -283,6 +283,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
         {
             throw std::runtime_error("Invalid map dimensions");
         }
+        _tileSize = { static_cast<float>(tileWidth), static_cast<float>(tileHeight) };
 
         const auto renderOrder = map.value("renderorder", std::string("right-down"));
         if (renderOrder != "right-down" && renderOrder != "right-up" &&
@@ -777,6 +778,11 @@ SDL_FRect TiledLevelLoader::getBounds() const noexcept
     return { 0.0f, 0.0f, _width, _height };
 }
 
+SDL_FPoint TiledLevelLoader::getTileSize() const noexcept
+{
+    return _tileSize;
+}
+
 void TiledLevelLoader::clear()
 {
     _tiles.clear();
@@ -790,4 +796,5 @@ void TiledLevelLoader::clear()
     _entityLayers.clear();
     _width = 0.0f;
     _height = 0.0f;
+    _tileSize = {};
 }

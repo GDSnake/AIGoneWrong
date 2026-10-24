@@ -1,6 +1,7 @@
 {
     "ScoutBot": {
         "spriteName": "ScoutBot",
+        "movingSpriteName": "ScoutBotWalk",
         "spriteScale": 0.75,
         "visionAngleDegrees": 45.0,
         "visionRadius": 100.0,
@@ -8,10 +9,23 @@
         "colliderWidth": 14.0,
         "colliderHeight": 8.0,
         "pivotX": 32.0,
-        "pivotY": 53.0
+        "pivotY": 53.0,
+        "behavior": {
+            "initialPersonality": "friendly-moving",
+            "switchSeconds": 10.0,
+            "movementSpeed": 32.0,
+            "patrolMinTiles": 2,
+            "patrolMaxTiles": 4,
+            "personalities": [
+                { "name": "friendly-moving", "weight": 4.0 },
+                { "name": "friendly-stopped", "weight": 4.0 },
+                { "name": "hostile", "weight": 1.0 }
+            ]
+        }
     },
     "TrooperBot": {
         "spriteName": "TrooperBot",
+        "movingSpriteName": "TrooperBotWalk",
         "spriteScale": 0.75,
         "visionAngleDegrees": 70.0,
         "visionRadius": 100.0,
@@ -19,6 +33,18 @@
         "colliderWidth": 16.0,
         "colliderHeight": 10.0,
         "pivotX": 32.0,
-        "pivotY": 53.0
+        "pivotY": 53.0,
+        "behavior": {
+            "initialPersonality": "friendly-stopped",
+            "switchSeconds": 12.0,
+            "movementSpeed": 32.0,
+            "patrolMinTiles": 2,
+            "patrolMaxTiles": 4,
+            "personalities": [
+                { "name": "friendly-moving", "weight": 4.0 },
+                { "name": "friendly-stopped", "weight": 4.0 },
+                { "name": "hostile", "weight": 1.0 }
+            ]
+        }
     }
 }

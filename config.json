@@ -38,8 +38,22 @@
             "columns": 8,
             "rows": 8
         },
+        "ScoutBotWalk": {
+            "path": "assets/Sprites/Robots/ScoutBot/sheets/scout_walk.png",
+            "frame_width": 64,
+            "frame_height": 64,
+            "columns": 8,
+            "rows": 8
+        },
         "TrooperBot": {
             "path": "assets/Sprites/Robots/TrooperBot/sheets/trooper_idle.png",
+            "frame_width": 64,
+            "frame_height": 64,
+            "columns": 8,
+            "rows": 8
+        },
+        "TrooperBotWalk": {
+            "path": "assets/Sprites/Robots/TrooperBot/sheets/trooper_walk.png",
             "frame_width": 64,
             "frame_height": 64,
             "columns": 8,

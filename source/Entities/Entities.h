@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 #include <map>
@@ -72,6 +73,7 @@ struct EntityData
     std::size_t renderLayer = 0;
     EntityDoorSettings door;
     EntityRobotSettings robot;
+    std::shared_ptr<Sprite> robotMovingSprite;
 };
 
 struct Entities
@@ -86,7 +88,7 @@ struct Entities
   Entities& operator=(const Entities&) = delete;
 
   void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
-      std::span<const std::vector<SDL_FPoint>> frameCollisions = {});
+      std::span<const std::vector<SDL_FPoint>> frameCollisions = {}, SDL_FPoint tileSize = { 32.0f, 32.0f });
   void SetVelocity(std::size_t index, float velocityX, float velocityY);
   void UpdateControllers(const InputManager& input);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
@@ -97,6 +99,7 @@ struct Entities
   std::span<const std::size_t> GetFrames() const noexcept;
   std::span<const RobotType> GetRobotTypes() const noexcept;
   std::span<const VisionState> GetVisionStates() const noexcept;
+  RobotPersonality GetRobotPersonality(std::size_t index) const;
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
@@ -117,6 +120,23 @@ struct Entities
   EntityData GetEntity(const std::string& name) const;
   
 private:
+  struct RobotRuntimeState
+  {
+    RobotPersonality personality = RobotPersonality::FriendlyStopped;
+    SightDirection axisDirection = SightDirection::Down;
+    float elapsed = 0.0f;
+    float patrolDistance = 0.0f;
+    float blockedTime = 0.0f;
+    SDL_FPoint home{};
+    SDL_FPoint patrolEnd{};
+    SDL_FPoint previousPosition{};
+    bool returning = false;
+    bool attemptedMovement = false;
+    bool initialized = false;
+    std::shared_ptr<Sprite> idleSprite;
+    std::shared_ptr<Sprite> movingSprite;
+  };
+
     Entities();
     ~Entities();
     b2BodyId CreateBody(const EntityData& entity);
@@ -126,7 +146,16 @@ private:
     void ValidateIndex(std::size_t index) const;
     void UpdatePlayerInput(std::size_t index, const InputManager& input);
     void UpdateDoor(std::size_t index, const InputManager& input);
-    void UpdateRobot(std::size_t index, const InputManager& input);
+    static RobotRuntimeState MakeRobotState(const EntityData& entity);
+    void UpdateRobot(std::size_t index, float deltaTime);
+    void SetRobotPersonality(std::size_t index, RobotPersonality personality);
+    void UpdateFriendlyMoving(std::size_t index, float deltaTime);
+    void UpdateFriendlyStopped(std::size_t index, float deltaTime);
+    void UpdateHostile(std::size_t index, float deltaTime);
+    void UpdateRobotVision(std::size_t index);
+    void UpdateRobotAnimation(std::size_t index);
+    bool PlanRobotPatrol(std::size_t index);
+    float PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation) const;
     float SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target) const;
     void RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
 
@@ -155,11 +184,14 @@ private:
     std::vector<RobotType> _robotTypes;
     std::vector<SightDirection> _sightDirections;
     std::vector<VisionState> _visionStates;
+    std::vector<RobotRuntimeState> _robotStates;
     std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 
     ParticleSystem& _particleSystem;
     b2WorldId _worldId = b2_nullWorldId;
     float _physicsAccumulator = 0.0f;
+    SDL_FPoint _tileSize{ 32.0f, 32.0f };
+    std::mt19937 _robotRandom{ std::random_device{}() };
     bool _sceneExitRequested = false;
 };

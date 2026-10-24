@@ -330,6 +330,66 @@ public:
         }
     }
 private:
+    static RobotPersonality parseRobotPersonality(const std::string& name)
+    {
+        for (std::size_t index = 0; index < RobotPersonalities.size(); ++index)
+        {
+            if (RobotPersonalities[index].name == name)
+            {
+                return static_cast<RobotPersonality>(index);
+            }
+        }
+        throw std::runtime_error("Config/robotProperties.json: unknown personality '" + name + "'");
+    }
+
+    static void loadRobotBehavior(const json& data, RobotBehaviorSettings& behavior)
+    {
+        if (!data.is_object())
+        {
+            throw std::runtime_error("Config/robotProperties.json: behavior must be an object");
+        }
+        behavior.initialPersonality = parseRobotPersonality(data.value("initialPersonality",
+            std::string(RobotPersonalities[static_cast<std::size_t>(behavior.initialPersonality)].name)));
+        behavior.switchSeconds = data.value("switchSeconds", behavior.switchSeconds);
+        behavior.movementSpeed = data.value("movementSpeed", behavior.movementSpeed);
+        behavior.patrolMinTiles = data.value("patrolMinTiles", behavior.patrolMinTiles);
+        behavior.patrolMaxTiles = data.value("patrolMaxTiles", behavior.patrolMaxTiles);
+        if (!std::isfinite(behavior.switchSeconds) || behavior.switchSeconds <= 0.0f ||
+            !std::isfinite(behavior.movementSpeed) || behavior.movementSpeed <= 0.0f ||
+            behavior.patrolMinTiles < 1 || behavior.patrolMaxTiles < behavior.patrolMinTiles)
+        {
+            throw std::runtime_error("Config/robotProperties.json: personality interval/speed must be positive and patrol tile limits must be ordered positive integers");
+        }
+        const auto& choices = data.at("personalities");
+        if (!choices.is_array() || choices.empty())
+        {
+            throw std::runtime_error("Config/robotProperties.json: personalities must be a nonempty array");
+        }
+        behavior.personalities.clear();
+        std::array<bool, static_cast<std::size_t>(RobotPersonality::Count)> seen{};
+        for (const auto& choice : choices)
+        {
+            const auto personality = parseRobotPersonality(choice.at("name").get<std::string>());
+            const float weight = choice.at("weight").get<float>();
+            const auto index = static_cast<std::size_t>(personality);
+            if (!std::isfinite(weight) || weight <= 0.0f || seen[index])
+            {
+                throw std::runtime_error("Config/robotProperties.json: personality weights must be positive and names unique");
+            }
+            seen[index] = true;
+            behavior.personalities.push_back({ personality, weight });
+        }
+        bool hasInitialPersonality = false;
+        for (const auto& choice : behavior.personalities)
+        {
+            hasInitialPersonality |= choice.personality == behavior.initialPersonality;
+        }
+        if (!hasInitialPersonality)
+        {
+            throw std::runtime_error("Config/robotProperties.json: initialPersonality must be included in personalities");
+        }
+    }
+
     static void loadRobotProperties(ConfigData& cfg)
     {
         const auto path = std::filesystem::current_path() / "Config" / "robotProperties.json";
@@ -373,10 +433,12 @@ private:
             {
                 throw std::runtime_error(std::format("Config/robotProperties.json: invalid {} properties; scale, angle, radius and collider sizes must be positive, angle <= 360, edgeFraction in (0, 1], and pivots finite", name));
             }
-            if (!cfg.imageSheets.contains(profile.spriteName))
+            profile.movingSpriteName = entry.value("movingSpriteName", profile.spriteName);
+            if (!cfg.imageSheets.contains(profile.spriteName) || !cfg.imageSheets.contains(profile.movingSpriteName))
             {
-                throw std::runtime_error(std::format("Config/robotProperties.json: {} references an unknown sprite sheet '{}'", name, profile.spriteName));
+                throw std::runtime_error(std::format("Config/robotProperties.json: {} references an unknown idle or moving sprite sheet", name));
             }
+            loadRobotBehavior(entry.at("behavior"), profile.behavior);
             cfg.robotProfiles[index + 1] = std::move(profile);
         }
     }

@@ -41,7 +41,7 @@ void MapScene::init()
     }
     try
     {
-        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions());
+        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions(), _level.getTileSize());
         auto sprite = SpriteManager::getInstance().getSprite("player");
         if (!sprite)
         {
@@ -97,11 +97,13 @@ void MapScene::init()
         {
             const RobotProfile& profile = Config::getInstance().getRobotProfile(robot.robot.type);
             auto sprite = SpriteManager::getInstance().getSprite(profile.spriteName);
-            if (!sprite)
+            auto movingSprite = SpriteManager::getInstance().getSprite(profile.movingSpriteName);
+            if (!sprite || !movingSprite)
             {
                 throw std::runtime_error("Missing robot sprite: " + std::string(profile.spriteName));
             }
             Renderer::getInstance().configureTexture(sprite->getTexture().get());
+            Renderer::getInstance().configureTexture(movingSprite->getTexture().get());
             const std::size_t firstFrame = RobotIdleRows[static_cast<std::size_t>(robot.robot.direction)] * 8;
             Entities::GetInstance().AddEntity({
                 .x = robot.position.x,
@@ -116,7 +118,8 @@ void MapScene::init()
                 .behavior = EntityBehavior::Robot,
                 .movementSpeed = 0.0f,
                 .renderLayer = robot.renderLayer,
-                .robot = robot.robot
+                .robot = robot.robot,
+                .robotMovingSprite = std::move(movingSprite)
             });
         }
     }

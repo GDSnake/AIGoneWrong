@@ -51,6 +51,7 @@ public:
     std::span<const SDL_FRect> getCollisions() const noexcept;
     std::span<const std::vector<SDL_FPoint>> getFrameCollisions() const noexcept;
     SDL_FRect getBounds() const noexcept;
+    SDL_FPoint getTileSize() const noexcept;
     void clear();
 
 private:
@@ -75,4 +76,5 @@ private:
     std::vector<std::size_t> _entityLayers;
     float _width = 0.0f;
     float _height = 0.0f;
+    SDL_FPoint _tileSize{};
 };
