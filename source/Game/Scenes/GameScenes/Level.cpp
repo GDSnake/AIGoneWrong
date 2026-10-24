@@ -15,8 +15,8 @@ namespace
     }
 }
 
-Level::Level(int index)
-    : MapScene(levelMapPath(index), std::format("Level_{:02}", index)), _index(index)
+Level::Level(int index, float viewScale)
+    : MapScene(levelMapPath(index), std::format("Level_{:02}", index), viewScale), _index(index)
 {
 }
 

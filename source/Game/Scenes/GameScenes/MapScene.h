@@ -19,12 +19,14 @@ public:
     void update(float deltaTime) override;
     void cleanup() override;
     std::string getName() const override;
+    void setViewScale(float scale);
+    float getViewScale() const noexcept;
     
     bool shouldQuit() const;
     void handleEvents(const SDL_Event& event) override;
 
 protected:
-    MapScene(std::filesystem::path mapPath, std::string sceneName);
+    MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale = 1.0f);
     virtual std::unique_ptr<Scene> createExitScene() const;
 
 private:
@@ -38,6 +40,7 @@ private:
     std::shared_ptr<Sprite> _doorSprite;
     std::filesystem::path _mapPath;
     std::string _sceneName;
+    float _viewScale = 1.0f;
     const ConfigData& _configData = Config::getInstance().getConfigData();
 
 #ifdef DEBUG

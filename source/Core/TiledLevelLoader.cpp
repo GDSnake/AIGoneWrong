@@ -651,7 +651,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
     }
 }
 
-void TiledLevelLoader::render(const Renderer& renderer,
+void TiledLevelLoader::render(const Renderer& renderer, const RenderView& view,
     const std::function<void(std::size_t, float, float, float)>& renderEntities) const
 {
     if (_width <= 0.0f || _height <= 0.0f)
@@ -659,15 +659,9 @@ void TiledLevelLoader::render(const Renderer& renderer,
         return;
     }
 
-    int outputWidth = 0;
-    int outputHeight = 0;
-    if (!renderer.getOutputSize(outputWidth, outputHeight) || outputWidth <= 0 || outputHeight <= 0)
-    {
-        return;
-    }
-    const float scale = std::min(static_cast<float>(outputWidth) / _width, static_cast<float>(outputHeight) / _height);
-    const float offsetX = (outputWidth - _width * scale) * 0.5f;
-    const float offsetY = (outputHeight - _height * scale) * 0.5f;
+    const float scale = view.scale;
+    const float offsetX = view.offsetX;
+    const float offsetY = view.offsetY;
 
     std::size_t renderLayer = 0;
     for (std::size_t tileIndex = 0; tileIndex <= _tiles.size(); ++tileIndex)

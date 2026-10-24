@@ -9,5 +9,5 @@ Room::Room()
 
 std::unique_ptr<Scene> Room::createExitScene() const
 {
-    return std::make_unique<Level>(1);
+    return std::make_unique<Level>(1, 2.0f);
 }

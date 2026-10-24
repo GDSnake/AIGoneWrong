@@ -1,5 +1,7 @@
 #include "MapScene.h"
 
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 
@@ -11,9 +13,10 @@
 #include "Entities/Entities.h"
 #include "Entities/Sprite.h"
 
-MapScene::MapScene(std::filesystem::path mapPath, std::string sceneName)
+MapScene::MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale)
     : _mapPath(std::move(mapPath)), _sceneName(std::move(sceneName))
 {
+    setViewScale(viewScale);
 }
 
 void MapScene::init()
@@ -165,14 +168,47 @@ void MapScene::render()
     Renderer& renderer = Renderer::getInstance();
     renderer.setDrawColor({ 0, 0, 0, 255 });
     renderer.clear();
-    _level.render(renderer, [&renderer](std::size_t layer, float scale, float offsetX, float offsetY)
+    const SDL_FRect bounds = _level.getBounds();
+    int outputWidth = 0;
+    int outputHeight = 0;
+    if (bounds.w <= 0.0f || bounds.h <= 0.0f ||
+        !renderer.getOutputSize(outputWidth, outputHeight) || outputWidth <= 0 || outputHeight <= 0)
+    {
+        return;
+    }
+    const float fitScale = std::min(outputWidth / bounds.w, outputHeight / bounds.h);
+    const float scale = fitScale * _viewScale;
+    if (!std::isfinite(scale) || scale <= 0.0f)
+    {
+        return;
+    }
+    const auto positionsX = Entities::GetInstance().GetXPositions();
+    const auto positionsY = Entities::GetInstance().GetYPositions();
+    const float focusX = positionsX.size() > Entities::PlayerIndex
+        ? positionsX[Entities::PlayerIndex] : bounds.x + bounds.w * 0.5f;
+    const float focusY = positionsY.size() > Entities::PlayerIndex
+        ? positionsY[Entities::PlayerIndex] : bounds.y + bounds.h * 0.5f;
+    const auto offset = [scale](float origin, float length, float output, float focus)
+    {
+        const float visibleLength = output / scale;
+        if (visibleLength >= length)
+        {
+            return (output - length * scale) * 0.5f - origin * scale;
+        }
+        const float cameraOrigin = std::clamp(focus - visibleLength * 0.5f,
+            origin, origin + length - visibleLength);
+        return -cameraOrigin * scale;
+    };
+    const RenderView view{ scale, offset(bounds.x, bounds.w, static_cast<float>(outputWidth), focusX),
+        offset(bounds.y, bounds.h, static_cast<float>(outputHeight), focusY) };
+    _level.render(renderer, view, [&renderer](std::size_t layer, float scale, float offsetX, float offsetY)
     {
         Entities::GetInstance().RenderLayer(layer, renderer, scale, offsetX, offsetY);
     });
 #ifdef DEBUG
     if (_drawCollisions)
     {
-        Entities::GetInstance().DrawCollisions(renderer, _level.getBounds());
+        Entities::GetInstance().DrawCollisions(renderer, view);
     }
 #endif
     renderTexts();
@@ -211,6 +247,20 @@ void MapScene::cleanup()
 std::string MapScene::getName() const
 {
     return _sceneName;
+}
+
+void MapScene::setViewScale(float scale)
+{
+    if (!std::isfinite(scale) || scale <= 0.0f)
+    {
+        throw std::invalid_argument("Map view scale must be finite and positive");
+    }
+    _viewScale = scale;
+}
+
+float MapScene::getViewScale() const noexcept
+{
+    return _viewScale;
 }
 
 std::unique_ptr<Scene> MapScene::createExitScene() const

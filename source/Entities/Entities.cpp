@@ -758,19 +758,12 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 }
 
 #ifdef DEBUG
-void Entities::DrawCollisions(const Renderer& renderer, const SDL_FRect& mapBounds) const
+void Entities::DrawCollisions(const Renderer& renderer, const RenderView& view) const
 {
-	if (!b2World_IsValid(_worldId) || mapBounds.w <= 0.0f || mapBounds.h <= 0.0f)
+	if (!b2World_IsValid(_worldId))
 	{
 		return;
 	}
-	int outputWidth = 0;
-	int outputHeight = 0;
-	if (!renderer.getOutputSize(outputWidth, outputHeight) || outputWidth <= 0 || outputHeight <= 0)
-	{
-		return;
-	}
-	const float scale = std::min(outputWidth / mapBounds.w, outputHeight / mapBounds.h);
 	struct DrawContext
 	{
 		const Renderer& renderer;
@@ -778,9 +771,7 @@ void Entities::DrawCollisions(const Renderer& renderer, const SDL_FRect& mapBoun
 		float offsetX;
 		float offsetY;
 	};
-	DrawContext context{ renderer, scale * PixelsPerMeter,
-		(outputWidth - mapBounds.w * scale) * 0.5f - mapBounds.x * scale,
-		(outputHeight - mapBounds.h * scale) * 0.5f - mapBounds.y * scale };
+	DrawContext context{ renderer, view.scale * PixelsPerMeter, view.offsetX, view.offsetY };
 	b2DebugDraw draw = b2DefaultDebugDraw();
 	draw.drawShapes = true;
 	draw.context = &context;

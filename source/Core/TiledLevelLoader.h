@@ -32,7 +32,7 @@ class TiledLevelLoader
 {
 public:
     bool load(const std::filesystem::path& mapPath, const Renderer& renderer);
-    void render(const Renderer& renderer,
+    void render(const Renderer& renderer, const RenderView& view,
         const std::function<void(std::size_t, float, float, float)>& renderEntities = {}) const;
     std::optional<TiledSpawnPoint> getSpawn(std::string_view name) const;
     std::span<const TiledSpawnPoint> getSpawns() const noexcept;

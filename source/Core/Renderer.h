@@ -10,6 +10,13 @@
 struct SDL_Window;
 struct TTF_Font;
 
+struct RenderView
+{
+    float scale = 1.0f;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+};
+
 class Renderer
 {
 public:

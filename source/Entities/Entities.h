@@ -16,6 +16,7 @@
 class Sprite;
 class InputManager;
 class Renderer;
+struct RenderView;
 
 enum class EntityBehavior : std::uint8_t
 {
@@ -96,7 +97,7 @@ struct Entities
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
 
 #ifdef DEBUG
-  void DrawCollisions(const Renderer& renderer, const SDL_FRect& mapBounds) const;
+  void DrawCollisions(const Renderer& renderer, const RenderView& view) const;
 #endif
 
   void AddEntity(const EntityData& entity);
