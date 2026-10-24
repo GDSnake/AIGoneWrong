@@ -7,7 +7,8 @@
     },
     "start_entities_number": 10,
     "sound": {
-        "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3"
+        "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",
+        "room_music": "assets/Audio/Music/QueerSample.flac"
     },
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"

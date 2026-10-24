@@ -5,16 +5,10 @@
 #include "Config/Config.h"
 
 AudioManager::AudioManager(): _mixer(nullptr, MIX_DestroyMixer),
-                              _bgm(nullptr, MIX_DestroyAudio),
                               _track(nullptr, MIX_DestroyTrack)
 {   
     const auto& audio = Config::getInstance().getConfigData().audio;
-    auto music = audio.find("background_music");
-    if (music == audio.end())
-    {
-        music = audio.find("bgm");
-    }
-    if (music == audio.end() || music->second.empty())
+    if (audio.empty())
     {
         return;
     }
@@ -32,18 +26,13 @@ AudioManager::AudioManager(): _mixer(nullptr, MIX_DestroyMixer),
         return;
     }
 
-    _bgm.reset(MIX_LoadAudio(_mixer.get(), music->second.c_str(), true));
-    if (!_bgm)
+    _track.reset(MIX_CreateTrack(_mixer.get()));
+    if (!_track)
     {
-        std::cerr << "Audio Manager BGM Error: " << SDL_GetError() << '\n';
+        std::cerr << "Audio Manager Track Error: " << SDL_GetError() << '\n';
         return;
     }
 
-    _track.reset(MIX_CreateTrack(_mixer.get()));
-    if (!_track || !MIX_SetTrackAudio(_track.get(), _bgm.get()))
-    {
-        std::cerr << "Audio Manager Track Error: " << SDL_GetError() << '\n';
-    }
 }
 
 AudioManager::~AudioManager()
@@ -55,7 +44,8 @@ void AudioManager::shutdown()
 {
     stopMusic();
     _track.reset();
-    _bgm.reset();
+    _music.clear();
+    _activeMusic = AudioTrack::Total;
     _mixer.reset();
     if (_mixInitialized)
     {
@@ -77,12 +67,52 @@ void AudioManager::toggleMusic() const
     }
     else
     {
-        playMusic();
+        playMusic(_activeMusic == AudioTrack::Total ? AudioTrack::BGM : _activeMusic);
     }
 }
 
-void AudioManager::playMusic() const
+void AudioManager::playMusic(AudioTrack music) const
 {
+    if (!_track)
+    {
+        return;
+    }
+    auto selected = _music.find(music);
+    if (selected == _music.end())
+    {
+        const auto& audio = Config::getInstance().getConfigData().audio;
+        auto source = audio.find(toString(music));
+        if (music == AudioTrack::BGM)
+        {
+            const auto legacy = audio.find("background_music");
+            if (legacy != audio.end())
+            {
+                source = legacy;
+            }
+        }
+        if (source == audio.end() || source->second.empty())
+        {
+            return;
+        }
+        std::unique_ptr<MIX_Audio, decltype(&MIX_DestroyAudio)> loaded(
+            MIX_LoadAudio(_mixer.get(), source->second.c_str(), false), MIX_DestroyAudio);
+        if (!loaded)
+        {
+            std::cerr << "Audio Manager Load Error for '" << source->second << "': " << SDL_GetError() << '\n';
+            return;
+        }
+        selected = _music.emplace(music, std::move(loaded)).first;
+    }
+    if (_activeMusic != music)
+    {
+        stopMusic();
+        if (!MIX_SetTrackAudio(_track.get(), selected->second.get()))
+        {
+            std::cerr << "Audio Manager Track Error: " << SDL_GetError() << '\n';
+            return;
+        }
+        _activeMusic = music;
+    }
     if (_track && !MIX_TrackPlaying(_track.get()))
     {
         SDL_PropertiesID properties = SDL_CreateProperties();
@@ -92,7 +122,10 @@ void AudioManager::playMusic() const
             return;
         }
         SDL_SetNumberProperty(properties, MIX_PROP_PLAY_LOOPS_NUMBER, -1);
-        MIX_PlayTrack(_track.get(), properties);
+        if (!MIX_PlayTrack(_track.get(), properties))
+        {
+            std::cerr << "Audio Manager Playback Error: " << SDL_GetError() << '\n';
+        }
         SDL_DestroyProperties(properties);
     }
 }
@@ -113,7 +146,7 @@ void AudioManager::resumeMusic() const
     }
     else
     {
-        playMusic();
+        playMusic(_activeMusic == AudioTrack::Total ? AudioTrack::BGM : _activeMusic);
     }
 }
 

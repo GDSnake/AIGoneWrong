@@ -7,6 +7,7 @@
 enum class AudioTrack : uint8_t
 {
     BGM = 0,
+    Room,
     // ADD as needed for the map
     Total
 };
@@ -17,6 +18,8 @@ static std::string toString(const AudioTrack track)
     {
     case AudioTrack::BGM:
         return "bgm";
+    case AudioTrack::Room:
+        return "room_music";
     default:
         return "";
     }
@@ -33,7 +36,7 @@ public:
 
     void toggleMusic() const;
 
-    void playMusic() const;
+    void playMusic(AudioTrack music = AudioTrack::BGM) const;
     void stopMusic() const;
     void resumeMusic() const;
     void pauseMusic() const;
@@ -44,8 +47,8 @@ private:
 
     ~AudioManager();
 	std::unique_ptr<MIX_Mixer, decltype(&MIX_DestroyMixer)> _mixer;
-	//std::unordered_map<std::string, std::unique_ptr<MIX_Audio, decltype(&MIX_DestroyAudio)>> _soundsMap;
-    std::unique_ptr<MIX_Audio, decltype(&MIX_DestroyAudio)> _bgm;
+    mutable std::unordered_map<AudioTrack, std::unique_ptr<MIX_Audio, decltype(&MIX_DestroyAudio)>> _music;
 	std::unique_ptr <MIX_Track, decltype(&MIX_DestroyTrack)> _track;
+    mutable AudioTrack _activeMusic = AudioTrack::Total;
     bool _mixInitialized = false;
 };
