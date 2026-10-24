@@ -179,9 +179,42 @@ void Renderer::drawOverlay(const SDL_Color& color) const
     SDL_SetRenderDrawBlendMode(_renderer, previousBlendMode);
 }
 
-void Renderer::drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color) const
+void Renderer::drawFilledRect(const SDL_FRect& rectangle, const SDL_Color& color) const
 {
-    if (!_renderer || !font || text.empty())
+    if (!_renderer)
+    {
+        return;
+    }
+    SDL_Color previousColor{};
+    SDL_BlendMode previousBlendMode = SDL_BLENDMODE_NONE;
+    if (!SDL_GetRenderDrawColor(_renderer, &previousColor.r, &previousColor.g, &previousColor.b, &previousColor.a) ||
+        !SDL_GetRenderDrawBlendMode(_renderer, &previousBlendMode))
+    {
+        return;
+    }
+    SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
+    setDrawColor(color);
+    SDL_RenderFillRect(_renderer, &rectangle);
+    setDrawColor(previousColor);
+    SDL_SetRenderDrawBlendMode(_renderer, previousBlendMode);
+}
+
+bool Renderer::measureText(TTF_Font* font, const std::string& text, float& width, float& height) const
+{
+    int measuredWidth = 0;
+    int measuredHeight = 0;
+    if (!font || !TTF_GetStringSize(font, text.c_str(), text.size(), &measuredWidth, &measuredHeight))
+    {
+        return false;
+    }
+    width = static_cast<float>(measuredWidth);
+    height = static_cast<float>(measuredHeight);
+    return true;
+}
+
+void Renderer::drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color, float scale) const
+{
+    if (!_renderer || !font || text.empty() || !std::isfinite(scale) || scale <= 0.0f)
     {
         return;
     }
@@ -204,7 +237,7 @@ void Renderer::drawText(TTF_Font* font, const std::string& text, const SDL_FPoin
     float height = 0.0f;
     if (SDL_GetTextureSize(texture.get(), &width, &height))
     {
-        const SDL_FRect destination{origin.x, origin.y, width, height};
+        const SDL_FRect destination{origin.x, origin.y, width * scale, height * scale};
         SDL_RenderTexture(_renderer, texture.get(), nullptr, &destination);
     }
 }
@@ -212,6 +245,16 @@ void Renderer::drawText(TTF_Font* font, const std::string& text, const SDL_FPoin
 bool Renderer::getOutputSize(int& width, int& height) const
 {
     return _renderer && SDL_GetRenderOutputSize(_renderer, &width, &height);
+}
+
+SDL_FPoint Renderer::windowToRender(const SDL_FPoint& point) const
+{
+    SDL_FPoint result = point;
+    if (_renderer)
+    {
+        SDL_RenderCoordinatesFromWindow(_renderer, point.x, point.y, &result.x, &result.y);
+    }
+    return result;
 }
 
 SDL_Window* Renderer::getWindow() const noexcept

@@ -8,6 +8,9 @@ public:
     explicit Level(int index, float viewScale = 1.0f);
     int getIndex() const noexcept;
 
+protected:
+    std::unique_ptr<Scene> createExitScene() const override;
+
 private:
     int _index;
 };

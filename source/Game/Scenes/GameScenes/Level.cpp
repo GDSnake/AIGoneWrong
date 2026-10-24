@@ -3,6 +3,8 @@
 #include <format>
 #include <stdexcept>
 
+#include "Game/Scenes/Menus/MainMenu.h"
+
 namespace
 {
     std::filesystem::path levelMapPath(int index)
@@ -23,4 +25,9 @@ Level::Level(int index, float viewScale)
 int Level::getIndex() const noexcept
 {
     return _index;
+}
+
+std::unique_ptr<Scene> Level::createExitScene() const
+{
+    return _index == 1 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
 }

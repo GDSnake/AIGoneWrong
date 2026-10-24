@@ -49,9 +49,13 @@ public:
         const SDL_FRect* source, double angle, SDL_FlipMode flip = SDL_FLIP_NONE, float opacity = 1.0f) const;
     void drawLines(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
     void drawTriangleFan(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
+    void drawFilledRect(const SDL_FRect& rectangle, const SDL_Color& color) const;
     void drawOverlay(const SDL_Color& color) const;
-    void drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color) const;
+    void drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color,
+        float scale = 1.0f) const;
+    bool measureText(TTF_Font* font, const std::string& text, float& width, float& height) const;
     bool getOutputSize(int& width, int& height) const;
+    SDL_FPoint windowToRender(const SDL_FPoint& point) const;
     SDL_Window* getWindow() const noexcept;
     SDL_Renderer* getRenderer() const noexcept;
     bool applyWindowSettings() const;
