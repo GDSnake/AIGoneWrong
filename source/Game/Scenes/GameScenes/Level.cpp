@@ -3,6 +3,7 @@
 #include <format>
 #include <stdexcept>
 
+#include "AssetManagers/AudioManager.h"
 #include "Game/Scenes/Menus/MainMenu.h"
 
 namespace
@@ -20,6 +21,24 @@ namespace
 Level::Level(int index, float viewScale)
     : MapScene(levelMapPath(index), std::format("Level_{:02}", index), viewScale), _index(index)
 {
+}
+
+void Level::init()
+{
+    MapScene::init();
+    if (_index == 1 && !shouldQuit())
+    {
+        AudioManager::getInstance().playMusic(AudioTrack::Level1);
+    }
+}
+
+void Level::cleanup()
+{
+    if (_index == 1)
+    {
+        AudioManager::getInstance().stopMusic();
+    }
+    MapScene::cleanup();
 }
 
 int Level::getIndex() const noexcept

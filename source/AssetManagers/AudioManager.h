@@ -8,6 +8,7 @@ enum class AudioTrack : uint8_t
 {
     BGM = 0,
     Room,
+    Level1,
     // ADD as needed for the map
     Total
 };
@@ -20,6 +21,8 @@ static std::string toString(const AudioTrack track)
         return "bgm";
     case AudioTrack::Room:
         return "room_music";
+    case AudioTrack::Level1:
+        return "level_1_music";
     default:
         return "";
     }

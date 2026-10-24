@@ -8,7 +8,8 @@
     "start_entities_number": 10,
     "sound": {
         "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",
-        "room_music": "assets/Audio/Music/QueerSample.flac"
+        "room_music": "assets/Audio/Music/QueerSample.flac",
+        "level_1_music": "assets/Audio/Music/Dead Cities Cut.flac"
     },
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
