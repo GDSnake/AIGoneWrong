@@ -838,12 +838,22 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 			RenderVision(index, renderer, scale, offsetX, offsetY);
 		}
 	}
+	std::vector<std::size_t> drawOrder;
+	drawOrder.reserve(_spriteEntities.size());
 	for (std::size_t index = 0; index < _spriteEntities.size(); ++index)
 	{
 		if (_renderLayers[index] == layer && _visibilityEntities[index] && _spriteEntities[index])
 		{
-			RenderEntity(index, renderer, scale, offsetX, offsetY);
+			drawOrder.push_back(index);
 		}
+	}
+	std::stable_sort(drawOrder.begin(), drawOrder.end(), [this](std::size_t left, std::size_t right)
+	{
+		return _yEntities[left] < _yEntities[right];
+	});
+	for (const auto index : drawOrder)
+	{
+		RenderEntity(index, renderer, scale, offsetX, offsetY);
 	}
 }
 

@@ -393,8 +393,11 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                 }
                 const float offsetX = layer.value("offsetx", 0.0f) + layer.value("x", 0.0f) * tileWidth;
                 const float offsetY = layer.value("offsety", 0.0f) + layer.value("y", 0.0f) * tileHeight;
-                const std::size_t renderLayer = _entityLayers.size();
-                _entityLayers.push_back(_tiles.size());
+                if (_entityLayers.empty() || _entityLayers.back() != _tiles.size())
+                {
+                    _entityLayers.push_back(_tiles.size());
+                }
+                const std::size_t renderLayer = _entityLayers.size() - 1;
                 std::vector<const nlohmann::json*> objects;
                 for (const auto& object : layer.at("objects"))
                 {
