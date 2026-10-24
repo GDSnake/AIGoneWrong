@@ -53,6 +53,8 @@ public:
     void drawOverlay(const SDL_Color& color) const;
     void drawText(TTF_Font* font, const std::string& text, const SDL_FPoint& origin, const SDL_Color& color,
         float scale = 1.0f) const;
+    void drawTextWrapped(TTF_Font* font, const std::string& text, const SDL_FRect& bounds,
+        const SDL_Color& color, float scale = 1.0f) const;
     bool measureText(TTF_Font* font, const std::string& text, float& width, float& height) const;
     bool getOutputSize(int& width, int& height) const;
     SDL_FPoint windowToRender(const SDL_FPoint& point) const;

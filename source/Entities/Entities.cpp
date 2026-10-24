@@ -627,7 +627,7 @@ void Entities::SetVelocity(std::size_t index, float velocityX, float velocityY)
 	}
 }
 
-void Entities::UpdateControllers(const InputManager& input)
+void Entities::UpdateControllers(const InputManager& input, bool playerInputEnabled)
 {
 	using ControllerUpdate = void (Entities::*)(std::size_t, const InputManager&);
 	static constexpr std::array<ControllerUpdate, static_cast<std::size_t>(EntityBehavior::Count)> controllers{
@@ -639,6 +639,11 @@ void Entities::UpdateControllers(const InputManager& input)
 	_doorVisualChanges.clear();
 	for (std::size_t index = 0; index < _behaviors.size(); ++index)
 	{
+		if (!playerInputEnabled && index == PlayerIndex && _behaviors[index] == EntityBehavior::PlayerInput)
+		{
+			SetVelocity(index, 0.0f, 0.0f);
+			continue;
+		}
 		if (const auto update = controllers[static_cast<std::size_t>(_behaviors[index])])
 		{
 			(this->*update)(index, input);

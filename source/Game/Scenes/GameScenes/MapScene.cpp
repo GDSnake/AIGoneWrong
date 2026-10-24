@@ -134,12 +134,21 @@ void MapScene::init()
     //Add all the texts you need for the scene
 
     _titleFont = FontsManager::getInstance().getFont(TitleFontInfo.fontName);
+    if (!_dialog.init(Renderer::getInstance(), _titleFont))
+    {
+        _input->quit();
+    }
     //Add all the fonts you need for the scene
 }
 
 void MapScene::handleEvents(const SDL_Event& event)
 {
     _input->handleEvent(event);
+    if (_dialog.isActive() && !isTransitioning() && event.type == SDL_EVENT_KEY_DOWN &&
+        !event.key.repeat && event.key.scancode == SDL_SCANCODE_SPACE)
+    {
+        _dialog.advance();
+    }
 #ifdef DEBUG
     if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_M && !event.key.repeat)
     {
@@ -173,7 +182,8 @@ void MapScene::update(float deltaTime)
     }
     else
     {
-        Entities::GetInstance().UpdateControllers(*_input);
+        const bool playerInputEnabled = isPlayerControlEnabled() && !_dialog.isActive();
+        Entities::GetInstance().UpdateControllers(*_input, playerInputEnabled);
         for (const DoorVisualChange& change : Entities::GetInstance().GetDoorVisualChanges())
         {
             _level.setDoorFrame(change.visualIndex, _doorSprite->getTexture().get(),
@@ -188,7 +198,7 @@ void MapScene::update(float deltaTime)
             constexpr float triggerRadius = 16.0f;
             reachedEnd = distanceX * distanceX + distanceY * distanceY <= triggerRadius * triggerRadius;
         }
-        if (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd)
+        if (playerInputEnabled && (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd))
         {
             auto nextScene = createExitScene();
             const bool requested = nextScene ? transitionTo(std::move(nextScene)) : requestExit();
@@ -251,6 +261,7 @@ void MapScene::render()
     }
 #endif
     renderTexts();
+    _dialog.render(renderer);
 }
 
 void MapScene::renderTexts()
@@ -275,6 +286,7 @@ void MapScene::updateStrings()
 
 void MapScene::cleanup()
 {
+    _dialog.cleanup();
     Entities::GetInstance().ClearEntities();
     _level.clear();
     _doorSprite.reset();
@@ -286,6 +298,17 @@ void MapScene::cleanup()
 std::string MapScene::getName() const
 {
     return _sceneName;
+}
+
+bool MapScene::isPlayerControlEnabled() const
+{
+    return true;
+}
+
+void MapScene::showDialog(std::vector<DialogLine> lines)
+{
+    _dialog.show(std::move(lines));
+    Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
 }
 
 void MapScene::setViewScale(float scale)

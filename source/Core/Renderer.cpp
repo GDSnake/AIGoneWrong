@@ -247,6 +247,35 @@ bool Renderer::getOutputSize(int& width, int& height) const
     return _renderer && SDL_GetRenderOutputSize(_renderer, &width, &height);
 }
 
+void Renderer::drawTextWrapped(TTF_Font* font, const std::string& text, const SDL_FRect& bounds,
+    const SDL_Color& color, float scale) const
+{
+    if (!_renderer || !font || text.empty() || !std::isfinite(scale) || scale <= 0.0f ||
+        bounds.w <= 0.0f || bounds.h <= 0.0f)
+    {
+        return;
+    }
+    std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> surface(
+        TTF_RenderText_Blended_Wrapped(font, text.c_str(), text.size(), color,
+            static_cast<int>(std::max(1.0f, bounds.w / scale))), SDL_DestroySurface);
+    if (!surface)
+    {
+        return;
+    }
+    Texture texture(SDL_CreateTextureFromSurface(_renderer, surface.get()));
+    if (!texture)
+    {
+        return;
+    }
+    float width = 0.0f;
+    float height = 0.0f;
+    if (getTextureSize(texture.get(), width, height) && width > 0.0f && height > 0.0f)
+    {
+        scale = std::min({ scale, bounds.w / width, bounds.h / height });
+        drawTexture(texture.get(), { bounds.x, bounds.y, width * scale, height * scale });
+    }
+}
+
 SDL_FPoint Renderer::windowToRender(const SDL_FPoint& point) const
 {
     SDL_FPoint result = point;

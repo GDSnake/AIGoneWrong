@@ -90,7 +90,7 @@ struct Entities
   void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
       std::span<const std::vector<SDL_FPoint>> frameCollisions = {}, SDL_FPoint tileSize = { 32.0f, 32.0f });
   void SetVelocity(std::size_t index, float velocityX, float velocityY);
-  void UpdateControllers(const InputManager& input);
+  void UpdateControllers(const InputManager& input, bool playerInputEnabled = true);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
   bool ConsumeSceneExitRequest() noexcept;
   void Update(float deltaTime);

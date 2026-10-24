@@ -6,6 +6,7 @@
 #include "Config/Config.h"
 #include "Core/TiledLevelLoader.h"
 #include "Game/Scenes/Scene.h"
+#include "Game/UI/DialogSystem.h"
 #include "Input/InputManager.h"
 
 struct TTF_Font;
@@ -28,6 +29,8 @@ public:
 protected:
     MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale = 1.0f);
     virtual std::unique_ptr<Scene> createExitScene() const;
+    virtual bool isPlayerControlEnabled() const;
+    void showDialog(std::vector<DialogLine> lines);
 
 private:
     void render() override;
@@ -37,6 +40,7 @@ private:
 
     std::unique_ptr<InputManager> _input;
     TiledLevelLoader _level;
+    DialogSystem _dialog;
     std::shared_ptr<Sprite> _doorSprite;
     std::filesystem::path _mapPath;
     std::string _sceneName;
