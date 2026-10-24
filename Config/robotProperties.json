@@ -14,6 +14,10 @@
             "initialPersonality": "friendly-moving",
             "switchSeconds": 10.0,
             "movementSpeed": 32.0,
+            "chaseSpeed": 64.0,
+            "chaseRepathSeconds": 0.5,
+            "chaseMemorySeconds": 4.0,
+            "chaseStopDistance": 12.0,
             "patrolMinTiles": 2,
             "patrolMaxTiles": 4,
             "personalities": [
@@ -38,6 +42,10 @@
             "initialPersonality": "friendly-stopped",
             "switchSeconds": 12.0,
             "movementSpeed": 32.0,
+            "chaseSpeed": 64.0,
+            "chaseRepathSeconds": 0.5,
+            "chaseMemorySeconds": 4.0,
+            "chaseStopDistance": 12.0,
             "patrolMinTiles": 2,
             "patrolMaxTiles": 4,
             "personalities": [

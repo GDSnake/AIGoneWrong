@@ -352,6 +352,10 @@ private:
             std::string(RobotPersonalities[static_cast<std::size_t>(behavior.initialPersonality)].name)));
         behavior.switchSeconds = data.value("switchSeconds", behavior.switchSeconds);
         behavior.movementSpeed = data.value("movementSpeed", behavior.movementSpeed);
+        behavior.chaseSpeed = data.value("chaseSpeed", behavior.chaseSpeed);
+        behavior.chaseRepathSeconds = data.value("chaseRepathSeconds", behavior.chaseRepathSeconds);
+        behavior.chaseMemorySeconds = data.value("chaseMemorySeconds", behavior.chaseMemorySeconds);
+        behavior.chaseStopDistance = data.value("chaseStopDistance", behavior.chaseStopDistance);
         behavior.patrolMinTiles = data.value("patrolMinTiles", behavior.patrolMinTiles);
         behavior.patrolMaxTiles = data.value("patrolMaxTiles", behavior.patrolMaxTiles);
         if (!std::isfinite(behavior.switchSeconds) || behavior.switchSeconds <= 0.0f ||
@@ -359,6 +363,15 @@ private:
             behavior.patrolMinTiles < 1 || behavior.patrolMaxTiles < behavior.patrolMinTiles)
         {
             throw std::runtime_error("Config/robotProperties.json: personality interval/speed must be positive and patrol tile limits must be ordered positive integers");
+        }
+        const std::array chaseValues{ behavior.chaseSpeed, behavior.chaseRepathSeconds,
+            behavior.chaseMemorySeconds, behavior.chaseStopDistance };
+        for (const float value : chaseValues)
+        {
+            if (!std::isfinite(value) || value <= 0.0f)
+            {
+                throw std::runtime_error("Config/robotProperties.json: chase speed, repath interval, memory and stopping distance must be positive and finite");
+            }
         }
         const auto& choices = data.at("personalities");
         if (!choices.is_array() || choices.empty())

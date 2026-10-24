@@ -87,6 +87,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(earcut)
 target_include_directories(${PROJECT_NAME} PRIVATE "${earcut_SOURCE_DIR}/include")
 
+FetchContent_Declare(
+    vienna_game_ai
+    URL https://github.com/hlavacs/ViennaGameAILibrary/archive/6c551ff614e891e81172e640a0a96bcb06e7642e.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR include
+)
+FetchContent_MakeAvailable(vienna_game_ai)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PrepareViennaGameAI.cmake")
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${VIENNA_INCLUDE_DIR}")
+
 if(WIN32)
     function(download_sdl_package package version archive_prefix root config_file)
         if(EXISTS "${root}/cmake/${config_file}")
@@ -195,6 +205,11 @@ add_custom_target(${PROJECT_NAME}Config ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/Config/robotProperties.json"
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Config/robotProperties.json"
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/licenses"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${vienna_game_ai_SOURCE_DIR}/LICENSE"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/licenses/ViennaGameAILibrary-LICENSE.txt"
     DEPENDS "${CONFIG_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/Config/robotProperties.json"
     VERBATIM
 )

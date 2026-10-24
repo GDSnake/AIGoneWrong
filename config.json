@@ -6,6 +6,9 @@
         "fullscreen": false
     },
     "start_entities_number": 10,
+    "sound": {
+        "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3"
+    },
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
     },

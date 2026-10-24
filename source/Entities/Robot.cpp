@@ -8,6 +8,7 @@
 #include <box2d/box2d.h>
 
 #include "Config/Config.h"
+#include "Core/Navigation/Navigation.h"
 #include "Entities/Sprite.h"
 
 namespace
@@ -45,8 +46,12 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.initialized = true;
     state.blockedTime = 0.0f;
     state.attemptedMovement = false;
+    state.chaseMemory = 0.0f;
+    state.repathTime = 0.0f;
+    state.path.clear();
+    state.nextWaypoint = 0;
     SetVelocity(index, 0.0f, 0.0f);
-    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyMoving ? b2_dynamicBody : b2_staticBody);
+    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped ? b2_staticBody : b2_dynamicBody);
 }
 
 void Entities::UpdateRobot(std::size_t index, float deltaTime)
@@ -177,25 +182,89 @@ void Entities::UpdateFriendlyMoving(std::size_t index, float deltaTime)
         distanceX = target.x - _xEntities[index];
         distanceY = target.y - _yEntities[index];
     }
-    const float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
-    if (distance < 0.0001f)
-    {
-        return;
-    }
-    const float speed = std::min(Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.movementSpeed, distance / deltaTime);
-    SetVelocity(index, distanceX * speed / distance, distanceY * speed / distance);
-    _sightDirections[index] = std::abs(distanceX) > std::abs(distanceY) ?
-        (distanceX < 0.0f ? SightDirection::Left : SightDirection::Right) :
-        (distanceY < 0.0f ? SightDirection::Up : SightDirection::Down);
+    MoveRobotTowards(index, target, Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.movementSpeed, deltaTime);
 }
 
 void Entities::UpdateFriendlyStopped(std::size_t, float)
 {
 }
 
-void Entities::UpdateHostile(std::size_t index, float)
+void Entities::UpdateHostile(std::size_t index, float deltaTime)
 {
     UpdateRobotVision(index);
+    auto& state = _robotStates[index];
+    const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
+    if (_visionStates[index] == VisionState::Detected ||
+        (state.chaseMemory > 0.0f && _visionStates[index] == VisionState::Peripheral))
+    {
+        state.lastSeenPlayer = { _xEntities[PlayerIndex], _yEntities[PlayerIndex] };
+        state.chaseMemory = behavior.chaseMemorySeconds;
+    }
+    else
+    {
+        state.chaseMemory = std::max(0.0f, state.chaseMemory - deltaTime);
+    }
+    if (state.chaseMemory <= 0.0f)
+    {
+        state.path.clear();
+        state.nextWaypoint = 0;
+        state.repathTime = 0.0f;
+        return;
+    }
+    _visionStates[index] = VisionState::Detected;
+    const SDL_FPoint position{ _xEntities[index], _yEntities[index] };
+    const float distanceX = state.lastSeenPlayer.x - position.x;
+    const float distanceY = state.lastSeenPlayer.y - position.y;
+    if (distanceX * distanceX + distanceY * distanceY <= behavior.chaseStopDistance * behavior.chaseStopDistance)
+    {
+        return;
+    }
+    state.repathTime -= deltaTime;
+    if (state.repathTime <= 0.0f)
+    {
+        state.path = Navigation::findPath({ _worldId, _mapBounds, { _tileSize.x * 0.5f, _tileSize.y * 0.5f },
+            _colliderSizes[index], position, state.lastSeenPlayer });
+        state.nextWaypoint = 0;
+        state.repathTime = behavior.chaseRepathSeconds;
+    }
+    while (state.nextWaypoint < state.path.size())
+    {
+        const auto& waypoint = state.path[state.nextWaypoint];
+        const float deltaX = waypoint.x - position.x;
+        const float deltaY = waypoint.y - position.y;
+        if (deltaX * deltaX + deltaY * deltaY > 0.0625f)
+        {
+            break;
+        }
+        ++state.nextWaypoint;
+    }
+    if (state.nextWaypoint >= state.path.size())
+    {
+        return;
+    }
+    const SDL_FPoint target = state.path[state.nextWaypoint];
+    if (PatrolClearance(index, position, { target.x - position.x, target.y - position.y }) < 0.999f)
+    {
+        state.repathTime = 0.0f;
+        return;
+    }
+    MoveRobotTowards(index, target, behavior.chaseSpeed, deltaTime);
+}
+
+void Entities::MoveRobotTowards(std::size_t index, const SDL_FPoint& target, float speed, float deltaTime)
+{
+    const float distanceX = target.x - _xEntities[index];
+    const float distanceY = target.y - _yEntities[index];
+    const float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
+    if (distance < 0.0001f)
+    {
+        return;
+    }
+    speed = std::min(speed, distance / deltaTime);
+    SetVelocity(index, distanceX * speed / distance, distanceY * speed / distance);
+    _sightDirections[index] = std::abs(distanceX) > std::abs(distanceY) ?
+        (distanceX < 0.0f ? SightDirection::Left : SightDirection::Right) :
+        (distanceY < 0.0f ? SightDirection::Up : SightDirection::Down);
 }
 
 void Entities::UpdateRobotAnimation(std::size_t index)

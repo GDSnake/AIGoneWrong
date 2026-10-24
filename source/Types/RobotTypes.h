@@ -61,6 +61,10 @@ struct RobotBehaviorSettings
     RobotPersonality initialPersonality = RobotPersonality::FriendlyStopped;
     float switchSeconds = 10.0f;
     float movementSpeed = 32.0f;
+    float chaseSpeed = 64.0f;
+    float chaseRepathSeconds = 0.5f;
+    float chaseMemorySeconds = 4.0f;
+    float chaseStopDistance = 12.0f;
     int patrolMinTiles = 2;
     int patrolMaxTiles = 4;
     std::vector<RobotPersonalityChoice> personalities;

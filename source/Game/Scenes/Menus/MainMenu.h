@@ -6,6 +6,7 @@ class MainMenu : public MenuScene
 {
 public:
     MainMenu();
+    void cleanup() override;
 
 private:
     void setup() override;

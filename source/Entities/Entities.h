@@ -127,9 +127,14 @@ private:
     float elapsed = 0.0f;
     float patrolDistance = 0.0f;
     float blockedTime = 0.0f;
+    float chaseMemory = 0.0f;
+    float repathTime = 0.0f;
     SDL_FPoint home{};
     SDL_FPoint patrolEnd{};
     SDL_FPoint previousPosition{};
+    SDL_FPoint lastSeenPlayer{};
+    std::vector<SDL_FPoint> path;
+    std::size_t nextWaypoint = 0;
     bool returning = false;
     bool attemptedMovement = false;
     bool initialized = false;
@@ -152,6 +157,7 @@ private:
     void UpdateFriendlyMoving(std::size_t index, float deltaTime);
     void UpdateFriendlyStopped(std::size_t index, float deltaTime);
     void UpdateHostile(std::size_t index, float deltaTime);
+    void MoveRobotTowards(std::size_t index, const SDL_FPoint& target, float speed, float deltaTime);
     void UpdateRobotVision(std::size_t index);
     void UpdateRobotAnimation(std::size_t index);
     bool PlanRobotPatrol(std::size_t index);
@@ -192,6 +198,7 @@ private:
     b2WorldId _worldId = b2_nullWorldId;
     float _physicsAccumulator = 0.0f;
     SDL_FPoint _tileSize{ 32.0f, 32.0f };
+    SDL_FRect _mapBounds{};
     std::mt19937 _robotRandom{ std::random_device{}() };
     bool _sceneExitRequested = false;
 };

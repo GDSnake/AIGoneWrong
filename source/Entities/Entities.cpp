@@ -385,6 +385,7 @@ void Entities::ClearEntities()
 	_worldId = b2_nullWorldId;
 	_physicsAccumulator = 0.0f;
 	_tileSize = { 32.0f, 32.0f };
+	_mapBounds = {};
 	_sceneExitRequested = false;
 	_doorVisualChanges.clear();
 	_xEntities.assign(PlayerIndex + 1, 0.0f);
@@ -499,6 +500,7 @@ void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SD
 	}
 	ClearEntities();
 	_tileSize = tileSize;
+	_mapBounds = bounds;
 	b2WorldDef definition = b2DefaultWorldDef();
 	definition.gravity = { 0.0f, 0.0f };
 	_worldId = b2CreateWorld(&definition);
