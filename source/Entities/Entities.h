@@ -82,6 +82,7 @@ struct Entities
   static constexpr const char* PlayerName = "player";
   static constexpr float PixelsPerMeter = 32.0f;
   static constexpr float PhysicsTimeStep = 1.0f / 60.0f;
+  static constexpr float PlayerScale = 0.8f;
 
   static Entities& GetInstance();
   Entities(const Entities&) = delete;
@@ -93,7 +94,7 @@ struct Entities
   void UpdateControllers(const InputManager& input, bool playerInputEnabled = true);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
   bool ConsumeSceneExitRequest() noexcept;
-  void Update(float deltaTime);
+  void Update(float deltaTime, bool robotPersonalityChangesEnabled = true);
   std::span<const float> GetXPositions() const noexcept;
   std::span<const float> GetYPositions() const noexcept;
   std::span<const std::size_t> GetFrames() const noexcept;
@@ -152,16 +153,17 @@ private:
     void UpdatePlayerInput(std::size_t index, const InputManager& input);
     void UpdateDoor(std::size_t index, const InputManager& input);
     static RobotRuntimeState MakeRobotState(const EntityData& entity);
-    void UpdateRobot(std::size_t index, float deltaTime);
+    void UpdateRobot(std::size_t index, float deltaTime, bool personalityChangesEnabled);
     void SetRobotPersonality(std::size_t index, RobotPersonality personality);
     void UpdateFriendlyMoving(std::size_t index, float deltaTime);
     void UpdateFriendlyStopped(std::size_t index, float deltaTime);
     void UpdateHostile(std::size_t index, float deltaTime);
     void MoveRobotTowards(std::size_t index, const SDL_FPoint& target, float speed, float deltaTime);
-    void UpdateRobotVision(std::size_t index);
+    void UpdateRobotVision(std::size_t index, bool trackingPlayer = false);
     void UpdateRobotAnimation(std::size_t index);
     bool PlanRobotPatrol(std::size_t index);
-    float PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation) const;
+    float PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation,
+      std::uint64_t maskBits = 1u) const;
     float SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target) const;
     void RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
 

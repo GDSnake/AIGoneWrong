@@ -1,5 +1,7 @@
 #include "Level.h"
 
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <stdexcept>
 
@@ -25,11 +27,28 @@ Level::Level(int index, float viewScale)
 
 void Level::init()
 {
+    _dialogDelay = 0.0f;
+    _introDialogShown = false;
     MapScene::init();
     if (_index == 1 && !shouldQuit())
     {
         AudioManager::getInstance().playMusic(AudioTrack::Level1);
     }
+}
+
+void Level::update(float deltaTime)
+{
+    if (_index == 1 && !shouldQuit() && !isTransitioning() && !_introDialogShown &&
+        std::isfinite(deltaTime) && deltaTime > 0.0f)
+    {
+        _dialogDelay += std::min(deltaTime, 0.25f);
+        if (_dialogDelay >= 1.0f)
+        {
+            _introDialogShown = true;
+            showDialog({ { "#generate# Ivalez", "Test text" } });
+        }
+    }
+    MapScene::update(deltaTime);
 }
 
 void Level::cleanup()
@@ -44,6 +63,11 @@ void Level::cleanup()
 int Level::getIndex() const noexcept
 {
     return _index;
+}
+
+bool Level::isPlayerControlEnabled() const
+{
+    return _index != 1 || _introDialogShown;
 }
 
 std::unique_ptr<Scene> Level::createExitScene() const

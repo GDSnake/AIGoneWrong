@@ -51,10 +51,10 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.path.clear();
     state.nextWaypoint = 0;
     SetVelocity(index, 0.0f, 0.0f);
-    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped ? b2_staticBody : b2_dynamicBody);
+    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped ? b2_staticBody : b2_kinematicBody);
 }
 
-void Entities::UpdateRobot(std::size_t index, float deltaTime)
+void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityChangesEnabled)
 {
     auto& state = _robotStates[index];
     const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
@@ -62,8 +62,11 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime)
     {
         SetRobotPersonality(index, behavior.initialPersonality);
     }
-    state.elapsed += deltaTime;
-    if (state.elapsed >= behavior.switchSeconds)
+    if (personalityChangesEnabled)
+    {
+        state.elapsed += deltaTime;
+    }
+    if (personalityChangesEnabled && state.elapsed >= behavior.switchSeconds)
     {
         state.elapsed = std::fmod(state.elapsed, behavior.switchSeconds);
         std::array<double, static_cast<std::size_t>(RobotPersonality::Count)> weights{};
@@ -98,7 +101,8 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime)
     UpdateRobotAnimation(index);
 }
 
-float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation) const
+float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation,
+    std::uint64_t maskBits) const
 {
     const float halfWidth = _colliderSizes[index].x * 0.5f;
     const float height = _colliderSizes[index].y;
@@ -112,16 +116,26 @@ float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, con
     std::copy(points.begin(), points.end(), proxy.points);
     proxy.count = static_cast<int>(points.size());
     b2QueryFilter filter = b2DefaultQueryFilter();
-    filter.maskBits = 1u;
-    float fraction = 1.0f;
+    filter.maskBits = maskBits;
+    struct SweepContext
+    {
+        b2BodyId ignoredBody;
+        float fraction = 1.0f;
+    };
+    SweepContext context{ _bodyIds[index] };
     b2World_CastShape(_worldId, &proxy, { translation.x / PixelsPerMeter, translation.y / PixelsPerMeter }, filter,
-        [](b2ShapeId, b2Vec2, b2Vec2, float hitFraction, void* context)
+        [](b2ShapeId shape, b2Vec2, b2Vec2, float hitFraction, void* userData)
         {
-            auto& closest = *static_cast<float*>(context);
-            closest = std::min(closest, hitFraction);
-            return closest;
-        }, &fraction);
-    return fraction;
+            auto& sweep = *static_cast<SweepContext*>(userData);
+            const auto body = b2Shape_GetBody(shape);
+            if (B2_ID_EQUALS(body, sweep.ignoredBody))
+            {
+                return -1.0f;
+            }
+            sweep.fraction = std::min(sweep.fraction, hitFraction);
+            return sweep.fraction;
+        }, &context);
+    return context.fraction;
 }
 
 bool Entities::PlanRobotPatrol(std::size_t index)
@@ -191,8 +205,8 @@ void Entities::UpdateFriendlyStopped(std::size_t, float)
 
 void Entities::UpdateHostile(std::size_t index, float deltaTime)
 {
-    UpdateRobotVision(index);
     auto& state = _robotStates[index];
+    UpdateRobotVision(index, state.chaseMemory > 0.0f);
     const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
     if (_visionStates[index] == VisionState::Detected ||
         (state.chaseMemory > 0.0f && _visionStates[index] == VisionState::Peripheral))
@@ -261,6 +275,13 @@ void Entities::MoveRobotTowards(std::size_t index, const SDL_FPoint& target, flo
         return;
     }
     speed = std::min(speed, distance / deltaTime);
+    const float step = speed * deltaTime;
+    const float clearance = PatrolClearance(index, { _xEntities[index], _yEntities[index] },
+        { distanceX * step / distance, distanceY * step / distance }, 3u);
+    if (clearance < 1.0f)
+    {
+        speed = std::max(0.0f, step * clearance - 0.1f) / deltaTime;
+    }
     SetVelocity(index, distanceX * speed / distance, distanceY * speed / distance);
     _sightDirections[index] = std::abs(distanceX) > std::abs(distanceY) ?
         (distanceX < 0.0f ? SightDirection::Left : SightDirection::Right) :
@@ -297,7 +318,7 @@ float Entities::SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target
     return result.hit ? result.fraction : 1.0f;
 }
 
-void Entities::UpdateRobotVision(std::size_t index)
+void Entities::UpdateRobotVision(std::size_t index, bool trackingPlayer)
 {
     if (!_nameEntities.contains(PlayerName))
     {
@@ -322,11 +343,11 @@ void Entities::UpdateRobotVision(std::size_t index)
     const SDL_FPoint forward = Directions[static_cast<std::size_t>(_sightDirections[index])];
     const float alignment = (distanceX * forward.x + distanceY * forward.y) / distance;
     const float halfAngle = profile.visionAngleDegrees * std::numbers::pi_v<float> / 360.0f;
-    if (alignment < std::cos(halfAngle) || SightFraction(origin, target) < 0.999f)
+    if ((!trackingPlayer && alignment < std::cos(halfAngle)) || SightFraction(origin, target) < 0.999f)
     {
         return;
     }
-    const bool edge = alignment < std::cos(halfAngle * profile.edgeFraction) ||
+    const bool edge = (!trackingPlayer && alignment < std::cos(halfAngle * profile.edgeFraction)) ||
         distance > profile.visionRadius * profile.edgeFraction;
     _visionStates[index] = edge ? VisionState::Peripheral : VisionState::Detected;
 }

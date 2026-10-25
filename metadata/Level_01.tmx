@@ -104,7 +104,7 @@
   <object id="1" name="PlayerSpawn" x="177.095" y="142.918">
    <point/>
   </object>
-  <object id="4" name="triggerEndLevel" x="534.391" y="370.5">
+  <object id="4" name="triggerEndLevel" x="534.391" y="369.5">
    <point/>
   </object>
  </objectgroup>

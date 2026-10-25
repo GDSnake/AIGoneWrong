@@ -60,6 +60,8 @@ void MapScene::init()
             .visible = true,
             .name = Entities::PlayerName,
             .collidable = true,
+            .colliderWidth = 12.0f * Entities::PlayerScale,
+            .colliderHeight = 6.0f * Entities::PlayerScale,
             .animation = { 0, 4, columns * 2, 6, 0.18f, 0.1f },
             .behavior = EntityBehavior::PlayerInput,
             .renderLayer = spawn->renderLayer
@@ -176,13 +178,13 @@ void MapScene::update(float deltaTime)
     {
         return;
     }
+    const bool playerInputEnabled = !isTransitioning() && isPlayerControlEnabled() && !_dialog.isActive();
     if (isTransitioning())
     {
         Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
     }
     else
     {
-        const bool playerInputEnabled = isPlayerControlEnabled() && !_dialog.isActive();
         Entities::GetInstance().UpdateControllers(*_input, playerInputEnabled);
         for (const DoorVisualChange& change : Entities::GetInstance().GetDoorVisualChanges())
         {
@@ -208,7 +210,7 @@ void MapScene::update(float deltaTime)
             }
         }
     }
-    Entities::GetInstance().Update(deltaTime);
+    Entities::GetInstance().Update(deltaTime, playerInputEnabled);
     _input->update();
 }
 

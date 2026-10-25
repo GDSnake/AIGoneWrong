@@ -712,7 +712,7 @@ bool Entities::ConsumeSceneExitRequest() noexcept
 	return std::exchange(_sceneExitRequested, false);
 }
 
-void Entities::Update(float deltaTime)
+void Entities::Update(float deltaTime, bool robotPersonalityChangesEnabled)
 {
 	if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
 	{
@@ -725,7 +725,7 @@ void Entities::Update(float deltaTime)
 		{
 			if (_robotTypes[index] != RobotType::None)
 			{
-				UpdateRobot(index, PhysicsTimeStep);
+				UpdateRobot(index, PhysicsTimeStep, robotPersonalityChangesEnabled);
 			}
 		}
 		if (b2World_IsValid(_worldId))
@@ -816,7 +816,7 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 	const SDL_FRect& source = _spriteEntities[index]->getSourceRect(_frames[index]);
 	const RobotProfile* profile = _robotTypes[index] != RobotType::None ?
 		&Config::getInstance().getRobotProfile(_robotTypes[index]) : nullptr;
-	const float spriteScale = profile ? profile->spriteScale : 1.0f;
+	const float spriteScale = profile ? profile->spriteScale : (index == PlayerIndex ? PlayerScale : 1.0f);
 	const float pivotX = profile ? profile->pivotX : source.w * 0.5f;
 	const float pivotY = profile ? profile->pivotY : source.h * 0.75f;
 	const SDL_FRect destination{
