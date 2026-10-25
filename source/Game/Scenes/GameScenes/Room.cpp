@@ -51,3 +51,10 @@ std::unique_ptr<Scene> Room::createExitScene() const
 {
     return std::make_unique<Level>(1, 2.0f);
 }
+
+std::unique_ptr<Scene> Room::createRestartScene() const
+{
+    auto scene = std::make_unique<Room>();
+    scene->setViewScale(getViewScale());
+    return scene;
+}

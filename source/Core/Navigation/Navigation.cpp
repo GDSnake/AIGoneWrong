@@ -41,7 +41,7 @@ namespace
 		return proxy;
 	}
 
-	bool canOccupy(const NavigationRequest& request, const SDL_FPoint& feet)
+	bool canOccupy(const NavigationRequest& request, const SDL_FPoint& feet, float padding = 1.0f)
 	{
 		if (feet.x - request.colliderSize.x * 0.5f < request.bounds.x ||
 			feet.x + request.colliderSize.x * 0.5f > request.bounds.x + request.bounds.w ||
@@ -49,7 +49,7 @@ namespace
 		{
 			return false;
 		}
-		const auto proxy = colliderProxy(request, feet, 1.0f);
+		const auto proxy = colliderProxy(request, feet, padding);
 		b2QueryFilter filter = b2DefaultQueryFilter();
 		filter.maskBits = 1u;
 		bool blocked = false;
@@ -61,9 +61,9 @@ namespace
 		return !blocked;
 	}
 
-	bool canTraverse(const NavigationRequest& request, const SDL_FPoint& from, const SDL_FPoint& to)
+	bool canTraverse(const NavigationRequest& request, const SDL_FPoint& from, const SDL_FPoint& to, float padding = 1.0f)
 	{
-		const auto proxy = colliderProxy(request, from, 1.0f);
+		const auto proxy = colliderProxy(request, from, padding);
 		b2QueryFilter filter = b2DefaultQueryFilter();
 		filter.maskBits = 1u;
 		bool blocked = false;
@@ -86,11 +86,11 @@ std::vector<SDL_FPoint> Navigation::findPath(const NavigationRequest& request)
 	if (!b2World_IsValid(request.world) ||
 		!std::all_of(values.begin(), values.end(), [](float value) { return std::isfinite(value); }) ||
 		request.bounds.w <= 0.0f || request.bounds.h <= 0.0f || request.cellSize.x <= 0.0f || request.cellSize.y <= 0.0f ||
-		request.colliderSize.x <= 0.0f || request.colliderSize.y <= 0.0f || !canOccupy(request, request.target))
+		request.colliderSize.x <= 0.0f || request.colliderSize.y <= 0.0f || !canOccupy(request, request.target, 0.0f))
 	{
 		return {};
 	}
-	if (canOccupy(request, request.start) && canTraverse(request, request.start, request.target))
+	if (canOccupy(request, request.start, 0.0f) && canTraverse(request, request.start, request.target, 0.0f))
 	{
 		return { request.target };
 	}
@@ -138,7 +138,7 @@ std::vector<SDL_FPoint> Navigation::findPath(const NavigationRequest& request)
 				const float deltaX = position.x - point.x;
 				const float deltaY = position.y - point.y;
 				const float distance = deltaX * deltaX + deltaY * deltaY;
-				if (distance < bestDistance && canTraverse(request, point, position))
+				if (distance < bestDistance && canTraverse(request, point, position, 0.0f))
 				{
 					bestDistance = distance;
 					closest = node;
@@ -160,7 +160,7 @@ std::vector<SDL_FPoint> Navigation::findPath(const NavigationRequest& request)
 	}
 	std::vector<SDL_FPoint> result;
 	result.reserve(nodes.size() + 1);
-	const std::size_t firstNode = nodes.size() > 1 && canTraverse(request, request.start, worldPoint(nodes[1])) ? 1 : 0;
+	const std::size_t firstNode = nodes.size() > 1 && canTraverse(request, request.start, worldPoint(nodes[1]), 0.0f) ? 1 : 0;
 	for (std::size_t index = firstNode; index < nodes.size(); ++index)
 	{
 		result.push_back(worldPoint(nodes[index]));

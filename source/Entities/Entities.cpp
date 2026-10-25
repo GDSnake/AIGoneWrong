@@ -387,6 +387,7 @@ void Entities::ClearEntities()
 	_tileSize = { 32.0f, 32.0f };
 	_mapBounds = {};
 	_sceneExitRequested = false;
+	_playerCaught = false;
 	_doorVisualChanges.clear();
 	_xEntities.assign(PlayerIndex + 1, 0.0f);
 	_yEntities.assign(PlayerIndex + 1, 0.0f);
@@ -415,6 +416,8 @@ void Entities::ClearEntities()
 	_sightDirections.assign(PlayerIndex + 1, SightDirection::Down);
 	_visionStates.assign(PlayerIndex + 1, VisionState::Unaware);
 	_robotStates.assign(PlayerIndex + 1, {});
+	_personalityEffectFrames.clear();
+	_personalityIntervalOverride = {};
 	_nameEntities.clear();
 }
 
@@ -712,6 +715,11 @@ bool Entities::ConsumeSceneExitRequest() noexcept
 	return std::exchange(_sceneExitRequested, false);
 }
 
+bool Entities::ConsumePlayerCaught() noexcept
+{
+	return std::exchange(_playerCaught, false);
+}
+
 void Entities::Update(float deltaTime, bool robotPersonalityChangesEnabled)
 {
 	if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
@@ -748,6 +756,12 @@ void Entities::Update(float deltaTime, bool robotPersonalityChangesEnabled)
 				_xEntities[index] += _velocityXEntities[index] * PhysicsTimeStep;
 				_yEntities[index] += _velocityYEntities[index] * PhysicsTimeStep;
 			}
+		}
+		if (robotPersonalityChangesEnabled && CheckPlayerCapture())
+		{
+			_playerCaught = true;
+			_physicsAccumulator = 0.0f;
+			break;
 		}
 		_physicsAccumulator -= PhysicsTimeStep;
 	}
@@ -827,6 +841,19 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 	};
 	renderer.drawTextureRotated(_spriteEntities[index]->getTexture().get(), destination, &source,
 		0.0, _facingLeft[index] ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+	if (profile && _robotStates[index].phase == RobotRuntimeState::Phase::Changing && !_personalityEffectFrames.empty())
+	{
+		const auto& state = _robotStates[index];
+		const auto frame = std::min(_personalityEffectFrames.size() - 1,
+			static_cast<std::size_t>(state.transitionTime / profile->behavior.transitionFrameSeconds));
+		const auto& effect = _personalityEffectFrames[frame];
+		const auto& effectSource = effect->getSourceRect(0);
+		const float size = std::max(source.w, source.h) * spriteScale * scale;
+		renderer.drawTexture(effect->getTexture().get(),
+			{ offsetX + _xEntities[index] * scale - size * 0.5f,
+				offsetY + (_yEntities[index] - (pivotY - source.h * 0.5f) * spriteScale) * scale - size * 0.5f,
+				size, size }, &effectSource);
+	}
 }
 
 void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const
@@ -878,12 +905,23 @@ void Entities::RenderVision(std::size_t index, const Renderer& renderer, float s
 		points[segment + 1] = { offsetX + (origin.x + (target.x - origin.x) * fraction) * scale,
 			offsetY + (origin.y + (target.y - origin.y) * fraction) * scale };
 	}
-	static constexpr std::array<SDL_Color, 3> colors{ {
-		{ 50, 210, 100, 70 }, { 245, 195, 50, 80 }, { 235, 65, 65, 85 }
-	} };
-	const auto personality = static_cast<std::size_t>(_robotStates[index].personality);
-	const SDL_Color color = RobotPersonalities[personality].detectsPlayer ?
-		colors[static_cast<std::size_t>(_visionStates[index])] : SDL_Color{ 245, 110, 190, 75 };
+	const auto& state = _robotStates[index];
+	const auto personality = static_cast<std::size_t>(state.personality);
+	const bool friendly = RobotPersonalities[personality].friendly;
+	SDL_Color color = friendly ? SDL_Color{ 245, 110, 190, 75 } : SDL_Color{ 50, 210, 100, 70 };
+	if (!friendly && _visionStates[index] == VisionState::Peripheral)
+	{
+		color = { 255, 210, 50, 85 };
+	}
+	else if (!friendly && _visionStates[index] == VisionState::Detected)
+	{
+		color = { 235, 65, 70, 90 };
+	}
+	if (state.phase == RobotRuntimeState::Phase::Changing)
+	{
+		const bool orange = static_cast<std::size_t>(state.transitionTime / profile.behavior.transitionBlinkSeconds) % 2 != 0;
+		color = orange ? SDL_Color{ 255, 150, 50, 85 } : SDL_Color{ 245, 110, 190, 75 };
+	}
 	renderer.drawTriangleFan(points, color);
 }
 

@@ -43,6 +43,18 @@ void MapScene::init()
     try
     {
         Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions(), _level.getTileSize());
+        std::vector<std::shared_ptr<Sprite>> personalityFrames;
+        for (int frame = 1; frame <= 7; ++frame)
+        {
+            auto effect = SpriteManager::getInstance().getSprite(std::format("robot-change-{}", frame));
+            if (!effect)
+            {
+                throw std::runtime_error("Robot personality-change animation is missing");
+            }
+            Renderer::getInstance().configureTexture(effect->getTexture().get());
+            personalityFrames.push_back(std::move(effect));
+        }
+        Entities::GetInstance().SetRobotPersonalityEffect(std::move(personalityFrames));
         auto sprite = SpriteManager::getInstance().getSprite("player");
         if (!sprite)
         {
@@ -146,6 +158,14 @@ void MapScene::init()
 
 void MapScene::handleEvents(const SDL_Event& event)
 {
+    if (_gameOver)
+    {
+        if (!isTransitioning())
+        {
+            _gameOver->handleEvents(event);
+        }
+        return;
+    }
     if (_pause)
     {
         if (!isTransitioning())
@@ -188,12 +208,16 @@ bool MapScene::shouldQuit() const
 
 bool MapScene::isPaused() const noexcept
 {
-    return static_cast<bool>(_pause);
+    return static_cast<bool>(_pause) || static_cast<bool>(_gameOver);
 }
 
 void MapScene::handleInput()
 {
-    if (_pause && !isTransitioning())
+    if (_gameOver && !isTransitioning())
+    {
+        _gameOver->handleInput();
+    }
+    else if (_pause && !isTransitioning())
     {
         _pause->handleInput();
     }
@@ -203,6 +227,20 @@ void MapScene::update(float deltaTime)
 {
     if (_input->shouldQuit())
     {
+        return;
+    }
+    if (_gameOver)
+    {
+        if (!isTransitioning())
+        {
+            _gameOver->update(deltaTime);
+            switch (_gameOver->consumeAction())
+            {
+                case GameOverAction::Restart: transitionTo(createRestartScene()); break;
+                case GameOverAction::MainMenu: transitionTo(std::make_unique<MainMenu>()); break;
+                case GameOverAction::None: break;
+            }
+        }
         return;
     }
     if (_pause)
@@ -247,6 +285,18 @@ void MapScene::update(float deltaTime)
             _level.setDoorFrame(change.visualIndex, _doorSprite->getTexture().get(),
                 _doorSprite->getSourceRect(change.frameIndex));
         }
+    }
+    Entities::GetInstance().Update(deltaTime, playerInputEnabled);
+    if (playerInputEnabled && Entities::GetInstance().ConsumePlayerCaught())
+    {
+        Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
+        AudioManager::getInstance().stopMusic();
+        _gameOver = std::make_unique<GameOverMenu>();
+        _gameOver->init();
+        *_input = {};
+    }
+    else if (playerInputEnabled)
+    {
         const auto endTrigger = _level.getSpawn("triggerEndLevel");
         bool reachedEnd = false;
         if (endTrigger)
@@ -256,7 +306,7 @@ void MapScene::update(float deltaTime)
             constexpr float triggerRadius = 16.0f;
             reachedEnd = distanceX * distanceX + distanceY * distanceY <= triggerRadius * triggerRadius;
         }
-        if (playerInputEnabled && (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd))
+        if (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd)
         {
             auto nextScene = createExitScene();
             const bool requested = nextScene ? transitionTo(std::move(nextScene)) : requestExit();
@@ -266,7 +316,6 @@ void MapScene::update(float deltaTime)
             }
         }
     }
-    Entities::GetInstance().Update(deltaTime, playerInputEnabled);
     _input->update();
 }
 
@@ -324,6 +373,10 @@ void MapScene::render()
     {
         _pause->render();
     }
+    if (_gameOver)
+    {
+        _gameOver->render();
+    }
 }
 
 void MapScene::renderTexts()
@@ -348,6 +401,11 @@ void MapScene::updateStrings()
 
 void MapScene::cleanup()
 {
+    if (_gameOver)
+    {
+        _gameOver->cleanup();
+        _gameOver.reset();
+    }
     if (_pause)
     {
         _pause->cleanup();

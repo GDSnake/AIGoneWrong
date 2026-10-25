@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <stdexcept>
+#include <utility>
 
 #include <box2d/box2d.h>
 
@@ -22,7 +24,9 @@ Entities::RobotRuntimeState Entities::MakeRobotState(const EntityData& entity)
 {
     RobotRuntimeState state;
     state.axisDirection = entity.robot.direction;
+    state.patrolDirection = entity.robot.direction;
     state.home = { entity.x, entity.y };
+    state.patrolOrigin = state.home;
     state.patrolEnd = state.home;
     state.previousPosition = state.home;
     if (entity.robot.type != RobotType::None)
@@ -31,6 +35,34 @@ Entities::RobotRuntimeState Entities::MakeRobotState(const EntityData& entity)
         state.movingSprite = entity.robotMovingSprite ? entity.robotMovingSprite : entity.sprite;
     }
     return state;
+}
+
+bool Entities::CheckPlayerCapture() const
+{
+    if (!_nameEntities.contains(PlayerName))
+    {
+        return false;
+    }
+    constexpr float contactMargin = 0.5f;
+    const SDL_FPoint playerCenter{ _xEntities[PlayerIndex], _yEntities[PlayerIndex] - _colliderSizes[PlayerIndex].y * 0.5f };
+    for (std::size_t index = 1; index < _robotTypes.size(); ++index)
+    {
+        if (_robotTypes[index] == RobotType::None || _robotStates[index].phase != RobotRuntimeState::Phase::Routine ||
+            RobotPersonalities[static_cast<std::size_t>(_robotStates[index].personality)].friendly)
+        {
+            continue;
+        }
+        const SDL_FPoint robotCenter{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
+        const float halfWidth = (_colliderSizes[index].x + _colliderSizes[PlayerIndex].x) * 0.5f;
+        const float halfHeight = (_colliderSizes[index].y + _colliderSizes[PlayerIndex].y) * 0.5f;
+        if (std::abs(robotCenter.x - playerCenter.x) <= halfWidth + contactMargin &&
+            std::abs(robotCenter.y - playerCenter.y) <= halfHeight + contactMargin &&
+            SightFraction(robotCenter, playerCenter) >= 0.999f)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 RobotPersonality Entities::GetRobotPersonality(std::size_t index) const
@@ -43,15 +75,89 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
 {
     auto& state = _robotStates[index];
     state.personality = personality;
+    state.pendingPersonality = personality;
     state.initialized = true;
     state.blockedTime = 0.0f;
     state.attemptedMovement = false;
+    state.hasChasedPlayer = false;
     state.chaseMemory = 0.0f;
     state.repathTime = 0.0f;
     state.path.clear();
     state.nextWaypoint = 0;
+    state.elapsed = 0.0f;
+    state.transitionTime = 0.0f;
+    state.patrolDistance = 0.0f;
+    const bool friendly = RobotPersonalities[static_cast<std::size_t>(personality)].friendly;
+    const float homeX = state.home.x - _xEntities[index];
+    const float homeY = state.home.y - _yEntities[index];
+    state.phase = friendly && homeX * homeX + homeY * homeY > 0.0625f ?
+        RobotRuntimeState::Phase::ReturningHome : RobotRuntimeState::Phase::Routine;
+    if (friendly)
+    {
+        state.patrolDirection = state.axisDirection;
+        state.patrolOrigin = state.home;
+    }
+    else if (personality == RobotPersonality::ChangeAxisAggressive)
+    {
+        static constexpr std::array swapped{ SightDirection::Left, SightDirection::Right, SightDirection::Up, SightDirection::Down };
+        state.patrolDirection = swapped[static_cast<std::size_t>(_sightDirections[index])];
+        state.patrolOrigin = { _xEntities[index], _yEntities[index] };
+        _sightDirections[index] = state.patrolDirection;
+    }
+    state.returning = false;
+    state.switchDelay = state.phase == RobotRuntimeState::Phase::Routine ? NextRobotPersonalityDelay(index) : 0.0f;
     SetVelocity(index, 0.0f, 0.0f);
-    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped ? b2_staticBody : b2_kinematicBody);
+    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped &&
+        state.phase == RobotRuntimeState::Phase::Routine ? b2_staticBody : b2_kinematicBody);
+}
+
+float Entities::NextRobotPersonalityDelay(std::size_t index)
+{
+    const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
+    if (!RobotPersonalities[static_cast<std::size_t>(_robotStates[index].personality)].friendly)
+    {
+        return std::uniform_real_distribution<float>(behavior.hostileMinSeconds, behavior.hostileMaxSeconds)(_robotRandom);
+    }
+    const float minimum = _personalityIntervalOverride.x > 0.0f ? _personalityIntervalOverride.x : behavior.switchMinSeconds;
+    const float maximum = _personalityIntervalOverride.y > 0.0f ? _personalityIntervalOverride.y : behavior.switchMaxSeconds;
+    return std::uniform_real_distribution<float>(minimum, maximum)(_robotRandom);
+}
+
+void Entities::SetRobotPersonalityInterval(float minimum, float maximum)
+{
+    if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum <= 0.0f || maximum < minimum)
+    {
+        throw std::invalid_argument("Robot personality intervals must be positive, finite and ordered");
+    }
+    _personalityIntervalOverride = { minimum, maximum };
+    for (std::size_t index = 0; index < _robotTypes.size(); ++index)
+    {
+        if (_robotTypes[index] != RobotType::None)
+        {
+            _robotStates[index].elapsed = 0.0f;
+            _robotStates[index].switchDelay = NextRobotPersonalityDelay(index);
+        }
+    }
+}
+
+void Entities::SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> frames)
+{
+    if (frames.empty() || std::any_of(frames.begin(), frames.end(), [](const auto& frame) { return !frame; }))
+    {
+        throw std::invalid_argument("Robot personality animation needs valid frames");
+    }
+    _personalityEffectFrames = std::move(frames);
+}
+
+void Entities::BeginRobotPersonalityChange(std::size_t index, RobotPersonality personality)
+{
+    auto& state = _robotStates[index];
+    state.pendingPersonality = personality;
+    state.phase = RobotRuntimeState::Phase::Changing;
+    state.transitionTime = 0.0f;
+    state.elapsed = 0.0f;
+    state.attemptedMovement = false;
+    SetVelocity(index, 0.0f, 0.0f);
 }
 
 void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityChangesEnabled)
@@ -62,18 +168,35 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
     {
         SetRobotPersonality(index, behavior.initialPersonality);
     }
-    if (personalityChangesEnabled)
+    SetVelocity(index, 0.0f, 0.0f);
+    _visionStates[index] = VisionState::Unaware;
+    if (state.phase == RobotRuntimeState::Phase::Changing)
+    {
+        if (personalityChangesEnabled)
+        {
+            state.transitionTime += deltaTime;
+        }
+        const float duration = std::max<std::size_t>(1, _personalityEffectFrames.size()) * behavior.transitionFrameSeconds;
+        if (state.transitionTime < duration)
+        {
+            UpdateRobotAnimation(index);
+            return;
+        }
+        SetRobotPersonality(index, state.pendingPersonality);
+    }
+    if (personalityChangesEnabled && state.phase == RobotRuntimeState::Phase::Routine)
     {
         state.elapsed += deltaTime;
     }
-    if (personalityChangesEnabled && state.elapsed >= behavior.switchSeconds)
+    const float switchDelay = state.switchDelay * (state.hasChasedPlayer ? behavior.chaseDurationMultiplier : 1.0f);
+    if (personalityChangesEnabled && state.phase == RobotRuntimeState::Phase::Routine && state.elapsed >= switchDelay)
     {
-        state.elapsed = std::fmod(state.elapsed, behavior.switchSeconds);
         std::array<double, static_cast<std::size_t>(RobotPersonality::Count)> weights{};
+        const bool currentlyFriendly = RobotPersonalities[static_cast<std::size_t>(state.personality)].friendly;
         bool canSwitch = false;
         for (const auto& choice : behavior.personalities)
         {
-            if (choice.personality != state.personality)
+            if (RobotPersonalities[static_cast<std::size_t>(choice.personality)].friendly != currentlyFriendly)
             {
                 weights[static_cast<std::size_t>(choice.personality)] = choice.weight;
                 canSwitch = true;
@@ -82,19 +205,29 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
         if (canSwitch)
         {
             std::discrete_distribution<std::size_t> choose(weights.begin(), weights.end());
-            SetRobotPersonality(index, static_cast<RobotPersonality>(choose(_robotRandom)));
+            BeginRobotPersonalityChange(index, static_cast<RobotPersonality>(choose(_robotRandom)));
+            UpdateRobotAnimation(index);
+            return;
         }
+        state.elapsed = 0.0f;
+        state.switchDelay = NextRobotPersonalityDelay(index);
     }
-    SetVelocity(index, 0.0f, 0.0f);
-    _visionStates[index] = VisionState::Unaware;
     using PersonalityUpdate = void (Entities::*)(std::size_t, float);
-    static constexpr std::array<PersonalityUpdate, 3> updates{
+    static constexpr std::array<PersonalityUpdate, 4> updates{
         &Entities::UpdateFriendlyMoving,
         &Entities::UpdateFriendlyStopped,
-        &Entities::UpdateHostile
+        &Entities::UpdateHostile,
+        &Entities::UpdateChangeAxisAggressive
     };
     static_assert(updates.size() == static_cast<std::size_t>(RobotPersonality::Count));
-    (this->*updates[static_cast<std::size_t>(state.personality)])(index, deltaTime);
+    if (state.phase == RobotRuntimeState::Phase::ReturningHome)
+    {
+        UpdateRobotReturnHome(index, deltaTime);
+    }
+    else
+    {
+        (this->*updates[static_cast<std::size_t>(state.personality)])(index, deltaTime);
+    }
     state.attemptedMovement = _velocityXEntities[index] * _velocityXEntities[index] +
         _velocityYEntities[index] * _velocityYEntities[index] > 1.0f;
     state.previousPosition = { _xEntities[index], _yEntities[index] };
@@ -138,24 +271,27 @@ float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, con
     return context.fraction;
 }
 
-bool Entities::PlanRobotPatrol(std::size_t index)
+bool Entities::PlanRobotPatrol(std::size_t index, bool chooseDistance)
 {
     auto& state = _robotStates[index];
     const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
-    const SDL_FPoint forward = Directions[static_cast<std::size_t>(state.axisDirection)];
+    const SDL_FPoint forward = Directions[static_cast<std::size_t>(state.patrolDirection)];
     const float tileLength = forward.x == 0.0f ? _tileSize.y : _tileSize.x;
-    const int tiles = std::uniform_int_distribution<int>(behavior.patrolMinTiles, behavior.patrolMaxTiles)(_robotRandom);
-    const float distance = tileLength * static_cast<float>(tiles);
+    if (chooseDistance || state.patrolTiles == 0)
+    {
+        state.patrolTiles = std::uniform_int_distribution<int>(behavior.patrolMinTiles, behavior.patrolMaxTiles)(_robotRandom);
+    }
+    const float distance = tileLength * static_cast<float>(state.patrolTiles);
     SDL_FPoint translation{ forward.x * distance, forward.y * distance };
-    float fraction = PatrolClearance(index, state.home, translation);
+    float fraction = PatrolClearance(index, state.patrolOrigin, translation);
     if (distance * fraction < 1.0f)
     {
         translation = { -translation.x, -translation.y };
-        fraction = PatrolClearance(index, state.home, translation);
+        fraction = PatrolClearance(index, state.patrolOrigin, translation);
     }
     state.patrolDistance = std::max(0.0f, distance * fraction - (fraction < 1.0f ? 0.5f : 0.0f));
-    state.patrolEnd = { state.home.x + translation.x * state.patrolDistance / distance,
-        state.home.y + translation.y * state.patrolDistance / distance };
+    state.patrolEnd = { state.patrolOrigin.x + translation.x * state.patrolDistance / distance,
+        state.patrolOrigin.y + translation.y * state.patrolDistance / distance };
     state.returning = false;
     return state.patrolDistance >= 1.0f;
 }
@@ -163,7 +299,8 @@ bool Entities::PlanRobotPatrol(std::size_t index)
 void Entities::UpdateFriendlyMoving(std::size_t index, float deltaTime)
 {
     auto& state = _robotStates[index];
-    if (state.patrolDistance < 1.0f && !PlanRobotPatrol(index))
+    const bool chooseDistance = state.personality != RobotPersonality::ChangeAxisAggressive;
+    if (state.patrolDistance < 1.0f && !PlanRobotPatrol(index, chooseDistance))
     {
         return;
     }
@@ -176,14 +313,14 @@ void Entities::UpdateFriendlyMoving(std::size_t index, float deltaTime)
         state.returning = true;
         state.blockedTime = 0.0f;
     }
-    SDL_FPoint target = state.returning ? state.home : state.patrolEnd;
+    SDL_FPoint target = state.returning ? state.patrolOrigin : state.patrolEnd;
     float distanceX = target.x - _xEntities[index];
     float distanceY = target.y - _yEntities[index];
     if (distanceX * distanceX + distanceY * distanceY <= 0.0625f)
     {
         if (state.returning)
         {
-            if (!PlanRobotPatrol(index))
+            if (!PlanRobotPatrol(index, chooseDistance))
             {
                 return;
             }
@@ -192,7 +329,7 @@ void Entities::UpdateFriendlyMoving(std::size_t index, float deltaTime)
         {
             state.returning = true;
         }
-        target = state.returning ? state.home : state.patrolEnd;
+        target = state.returning ? state.patrolOrigin : state.patrolEnd;
         distanceX = target.x - _xEntities[index];
         distanceY = target.y - _yEntities[index];
     }
@@ -203,6 +340,58 @@ void Entities::UpdateFriendlyStopped(std::size_t, float)
 {
 }
 
+void Entities::UpdateChangeAxisAggressive(std::size_t index, float deltaTime)
+{
+    UpdateHostile(index, deltaTime);
+    if (_robotStates[index].chaseMemory <= 0.0f)
+    {
+        UpdateFriendlyMoving(index, deltaTime);
+    }
+}
+
+void Entities::UpdateRobotReturnHome(std::size_t index, float deltaTime)
+{
+    auto& state = _robotStates[index];
+    const SDL_FPoint position{ _xEntities[index], _yEntities[index] };
+    const float deltaX = state.home.x - position.x;
+    const float deltaY = state.home.y - position.y;
+    if (deltaX * deltaX + deltaY * deltaY <= 0.0625f)
+    {
+        state.phase = RobotRuntimeState::Phase::Routine;
+        state.elapsed = 0.0f;
+        state.switchDelay = NextRobotPersonalityDelay(index);
+        state.patrolDistance = 0.0f;
+        state.path.clear();
+        state.nextWaypoint = 0;
+        state.attemptedMovement = false;
+        _sightDirections[index] = state.axisDirection;
+        if (state.personality == RobotPersonality::FriendlyStopped)
+        {
+            b2Body_SetType(_bodyIds[index], b2_staticBody);
+        }
+        return;
+    }
+    state.repathTime -= deltaTime;
+    if (state.repathTime <= 0.0f)
+    {
+        state.path = Navigation::findPath({ _worldId, _mapBounds, { _tileSize.x * 0.5f, _tileSize.y * 0.5f },
+            _colliderSizes[index], position, state.home });
+        state.nextWaypoint = 0;
+        state.repathTime = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.chaseRepathSeconds;
+    }
+    while (state.nextWaypoint < state.path.size())
+    {
+        const auto& target = state.path[state.nextWaypoint];
+        const float distanceX = target.x - position.x;
+        const float distanceY = target.y - position.y;
+        if (distanceX * distanceX + distanceY * distanceY > 0.0625f)
+        {
+            MoveRobotTowards(index, target, Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.movementSpeed, deltaTime);
+            return;
+        }
+        ++state.nextWaypoint;
+    }
+}
 void Entities::UpdateHostile(std::size_t index, float deltaTime)
 {
     auto& state = _robotStates[index];
@@ -213,6 +402,7 @@ void Entities::UpdateHostile(std::size_t index, float deltaTime)
     {
         state.lastSeenPlayer = { _xEntities[PlayerIndex], _yEntities[PlayerIndex] };
         state.chaseMemory = behavior.chaseMemorySeconds;
+        state.hasChasedPlayer = true;
     }
     else
     {
@@ -229,7 +419,8 @@ void Entities::UpdateHostile(std::size_t index, float deltaTime)
     const SDL_FPoint position{ _xEntities[index], _yEntities[index] };
     const float distanceX = state.lastSeenPlayer.x - position.x;
     const float distanceY = state.lastSeenPlayer.y - position.y;
-    if (distanceX * distanceX + distanceY * distanceY <= behavior.chaseStopDistance * behavior.chaseStopDistance)
+    const float stopDistance = std::min(behavior.chaseStopDistance, 0.25f);
+    if (distanceX * distanceX + distanceY * distanceY <= stopDistance * stopDistance)
     {
         return;
     }

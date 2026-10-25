@@ -6,6 +6,7 @@
 #include "Config/Config.h"
 #include "Core/TiledLevelLoader.h"
 #include "Game/Scenes/Scene.h"
+#include "Game/Scenes/Menus/GameOverMenu.h"
 #include "Game/Scenes/Menus/PauseMenu.h"
 #include "Game/UI/DialogSystem.h"
 #include "Input/InputManager.h"
@@ -31,6 +32,7 @@ public:
 protected:
     MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale = 1.0f);
     virtual std::unique_ptr<Scene> createExitScene() const;
+    virtual std::unique_ptr<Scene> createRestartScene() const = 0;
     virtual bool isPlayerControlEnabled() const;
     void showDialog(std::vector<DialogLine> lines);
 
@@ -44,6 +46,7 @@ private:
     TiledLevelLoader _level;
     DialogSystem _dialog;
     std::unique_ptr<PauseMenu> _pause;
+    std::unique_ptr<GameOverMenu> _gameOver;
     bool _resumeMusicAfterPause = false;
     std::shared_ptr<Sprite> _doorSprite;
     std::filesystem::path _mapPath;

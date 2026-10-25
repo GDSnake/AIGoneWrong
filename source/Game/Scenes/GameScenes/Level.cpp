@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "AssetManagers/AudioManager.h"
+#include "Entities/Entities.h"
 #include "Game/Scenes/Menus/MainMenu.h"
 
 namespace
@@ -32,6 +33,7 @@ void Level::init()
     MapScene::init();
     if (_index == 1 && !shouldQuit())
     {
+        Entities::GetInstance().SetRobotPersonalityInterval(1.0f, 1.0f);
         AudioManager::getInstance().playMusic(AudioTrack::Level1);
     }
 }
@@ -73,4 +75,9 @@ bool Level::isPlayerControlEnabled() const
 std::unique_ptr<Scene> Level::createExitScene() const
 {
     return _index == 1 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
+}
+
+std::unique_ptr<Scene> Level::createRestartScene() const
+{
+    return std::make_unique<Level>(_index, getViewScale());
 }

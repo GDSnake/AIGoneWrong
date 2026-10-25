@@ -347,15 +347,28 @@ private:
         }
         behavior.initialPersonality = parseRobotPersonality(data.value("initialPersonality",
             std::string(RobotPersonalities[static_cast<std::size_t>(behavior.initialPersonality)].name)));
-        behavior.switchSeconds = data.value("switchSeconds", behavior.switchSeconds);
+        const float minimumInterval = data.value("switchSeconds", behavior.switchMinSeconds);
+        const float maximumInterval = data.value("switchSeconds", behavior.switchMaxSeconds);
+        behavior.switchMinSeconds = data.value("switchMinSeconds", minimumInterval);
+        behavior.switchMaxSeconds = data.value("switchMaxSeconds", maximumInterval);
+        behavior.hostileMinSeconds = data.value("hostileMinSeconds", behavior.hostileMinSeconds);
+        behavior.hostileMaxSeconds = data.value("hostileMaxSeconds", behavior.hostileMaxSeconds);
+        behavior.transitionFrameSeconds = data.value("transitionFrameSeconds", behavior.transitionFrameSeconds);
+        behavior.transitionBlinkSeconds = data.value("transitionBlinkSeconds", behavior.transitionBlinkSeconds);
         behavior.movementSpeed = data.value("movementSpeed", behavior.movementSpeed);
         behavior.chaseSpeed = data.value("chaseSpeed", behavior.chaseSpeed);
         behavior.chaseRepathSeconds = data.value("chaseRepathSeconds", behavior.chaseRepathSeconds);
         behavior.chaseMemorySeconds = data.value("chaseMemorySeconds", behavior.chaseMemorySeconds);
         behavior.chaseStopDistance = data.value("chaseStopDistance", behavior.chaseStopDistance);
+        behavior.chaseDurationMultiplier = data.value("chaseDurationMultiplier", behavior.chaseDurationMultiplier);
         behavior.patrolMinTiles = data.value("patrolMinTiles", behavior.patrolMinTiles);
         behavior.patrolMaxTiles = data.value("patrolMaxTiles", behavior.patrolMaxTiles);
-        if (!std::isfinite(behavior.switchSeconds) || behavior.switchSeconds <= 0.0f ||
+        if (!std::isfinite(behavior.switchMinSeconds) || behavior.switchMinSeconds <= 0.0f ||
+            !std::isfinite(behavior.switchMaxSeconds) || behavior.switchMaxSeconds < behavior.switchMinSeconds ||
+            !std::isfinite(behavior.hostileMinSeconds) || behavior.hostileMinSeconds <= 0.0f ||
+            !std::isfinite(behavior.hostileMaxSeconds) || behavior.hostileMaxSeconds < behavior.hostileMinSeconds ||
+            !std::isfinite(behavior.transitionFrameSeconds) || behavior.transitionFrameSeconds <= 0.0f ||
+            !std::isfinite(behavior.transitionBlinkSeconds) || behavior.transitionBlinkSeconds <= 0.0f ||
             !std::isfinite(behavior.movementSpeed) || behavior.movementSpeed <= 0.0f ||
             behavior.patrolMinTiles < 1 || behavior.patrolMaxTiles < behavior.patrolMinTiles)
         {
@@ -369,6 +382,10 @@ private:
             {
                 throw std::runtime_error("Config/robotProperties.json: chase speed, repath interval, memory and stopping distance must be positive and finite");
             }
+        }
+        if (!std::isfinite(behavior.chaseDurationMultiplier) || behavior.chaseDurationMultiplier < 1.0f)
+        {
+            throw std::runtime_error("Config/robotProperties.json: chase duration multiplier must be finite and at least one");
         }
         const auto& choices = data.at("personalities");
         if (!choices.is_array() || choices.empty())

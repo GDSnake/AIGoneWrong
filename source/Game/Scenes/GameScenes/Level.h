@@ -13,6 +13,7 @@ public:
 
 protected:
     std::unique_ptr<Scene> createExitScene() const override;
+    std::unique_ptr<Scene> createRestartScene() const override;
     bool isPlayerControlEnabled() const override;
 
 private:

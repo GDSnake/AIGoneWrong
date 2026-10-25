@@ -94,6 +94,7 @@ struct Entities
   void UpdateControllers(const InputManager& input, bool playerInputEnabled = true);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
   bool ConsumeSceneExitRequest() noexcept;
+  bool ConsumePlayerCaught() noexcept;
   void Update(float deltaTime, bool robotPersonalityChangesEnabled = true);
   std::span<const float> GetXPositions() const noexcept;
   std::span<const float> GetYPositions() const noexcept;
@@ -101,6 +102,8 @@ struct Entities
   std::span<const RobotType> GetRobotTypes() const noexcept;
   std::span<const VisionState> GetVisionStates() const noexcept;
   RobotPersonality GetRobotPersonality(std::size_t index) const;
+  void SetRobotPersonalityInterval(float minimum, float maximum);
+  void SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> frames);
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
@@ -123,14 +126,22 @@ struct Entities
 private:
   struct RobotRuntimeState
   {
+    enum class Phase { Routine, Changing, ReturningHome };
     RobotPersonality personality = RobotPersonality::FriendlyStopped;
+    RobotPersonality pendingPersonality = RobotPersonality::FriendlyStopped;
+    Phase phase = Phase::Routine;
     SightDirection axisDirection = SightDirection::Down;
+    SightDirection patrolDirection = SightDirection::Down;
     float elapsed = 0.0f;
+    float switchDelay = 0.0f;
+    float transitionTime = 0.0f;
     float patrolDistance = 0.0f;
+    int patrolTiles = 0;
     float blockedTime = 0.0f;
     float chaseMemory = 0.0f;
     float repathTime = 0.0f;
     SDL_FPoint home{};
+    SDL_FPoint patrolOrigin{};
     SDL_FPoint patrolEnd{};
     SDL_FPoint previousPosition{};
     SDL_FPoint lastSeenPlayer{};
@@ -138,6 +149,7 @@ private:
     std::size_t nextWaypoint = 0;
     bool returning = false;
     bool attemptedMovement = false;
+    bool hasChasedPlayer = false;
     bool initialized = false;
     std::shared_ptr<Sprite> idleSprite;
     std::shared_ptr<Sprite> movingSprite;
@@ -155,13 +167,18 @@ private:
     static RobotRuntimeState MakeRobotState(const EntityData& entity);
     void UpdateRobot(std::size_t index, float deltaTime, bool personalityChangesEnabled);
     void SetRobotPersonality(std::size_t index, RobotPersonality personality);
+    float NextRobotPersonalityDelay(std::size_t index);
+    void BeginRobotPersonalityChange(std::size_t index, RobotPersonality personality);
+    void UpdateRobotReturnHome(std::size_t index, float deltaTime);
+    void UpdateChangeAxisAggressive(std::size_t index, float deltaTime);
+    bool CheckPlayerCapture() const;
     void UpdateFriendlyMoving(std::size_t index, float deltaTime);
     void UpdateFriendlyStopped(std::size_t index, float deltaTime);
     void UpdateHostile(std::size_t index, float deltaTime);
     void MoveRobotTowards(std::size_t index, const SDL_FPoint& target, float speed, float deltaTime);
     void UpdateRobotVision(std::size_t index, bool trackingPlayer = false);
     void UpdateRobotAnimation(std::size_t index);
-    bool PlanRobotPatrol(std::size_t index);
+    bool PlanRobotPatrol(std::size_t index, bool chooseDistance = true);
     float PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation,
       std::uint64_t maskBits = 1u) const;
     float SightFraction(const SDL_FPoint& origin, const SDL_FPoint& target) const;
@@ -193,6 +210,7 @@ private:
     std::vector<SightDirection> _sightDirections;
     std::vector<VisionState> _visionStates;
     std::vector<RobotRuntimeState> _robotStates;
+    std::vector<std::shared_ptr<Sprite>> _personalityEffectFrames;
     std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 
@@ -201,6 +219,8 @@ private:
     float _physicsAccumulator = 0.0f;
     SDL_FPoint _tileSize{ 32.0f, 32.0f };
     SDL_FRect _mapBounds{};
+    SDL_FPoint _personalityIntervalOverride{};
     std::mt19937 _robotRandom{ std::random_device{}() };
     bool _sceneExitRequested = false;
+    bool _playerCaught = false;
 };

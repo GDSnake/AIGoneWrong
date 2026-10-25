@@ -35,6 +35,7 @@ enum class RobotPersonality : std::uint8_t
     FriendlyMoving,
     FriendlyStopped,
     Hostile,
+    ChangeAxisAggressive,
     Count
 };
 
@@ -42,12 +43,14 @@ struct RobotPersonalityDefinition
 {
     std::string_view name;
     bool detectsPlayer;
+    bool friendly;
 };
 
 inline constexpr std::array<RobotPersonalityDefinition, static_cast<std::size_t>(RobotPersonality::Count)> RobotPersonalities{ {
-    { "friendly-moving", false },
-    { "friendly-stopped", false },
-    { "hostile", true }
+    { "friendly-moving", false, true },
+    { "friendly-stopped", false, true },
+    { "hostile", true, false },
+    { "change-axis-aggressive", true, false }
 } };
 
 struct RobotPersonalityChoice
@@ -59,12 +62,18 @@ struct RobotPersonalityChoice
 struct RobotBehaviorSettings
 {
     RobotPersonality initialPersonality = RobotPersonality::FriendlyStopped;
-    float switchSeconds = 10.0f;
+    float switchMinSeconds = 2.0f;
+    float switchMaxSeconds = 4.0f;
+    float hostileMinSeconds = 3.0f;
+    float hostileMaxSeconds = 5.0f;
+    float transitionFrameSeconds = 0.1f;
+    float transitionBlinkSeconds = 0.1f;
     float movementSpeed = 32.0f;
     float chaseSpeed = 64.0f;
     float chaseRepathSeconds = 0.5f;
     float chaseMemorySeconds = 4.0f;
     float chaseStopDistance = 12.0f;
+    float chaseDurationMultiplier = 1.5f;
     int patrolMinTiles = 2;
     int patrolMaxTiles = 4;
     std::vector<RobotPersonalityChoice> personalities;

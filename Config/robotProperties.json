@@ -12,18 +12,24 @@
         "pivotY": 53.0,
         "behavior": {
             "initialPersonality": "friendly-moving",
-            "switchSeconds": 10.0,
+            "switchMinSeconds": 2.0,
+            "switchMaxSeconds": 4.0,
+            "hostileMinSeconds": 3.0,
+            "hostileMaxSeconds": 5.0,
+            "transitionFrameSeconds": 0.1,
+            "transitionBlinkSeconds": 0.1,
             "movementSpeed": 32.0,
             "chaseSpeed": 64.0,
             "chaseRepathSeconds": 0.5,
             "chaseMemorySeconds": 4.0,
             "chaseStopDistance": 12.0,
+            "chaseDurationMultiplier": 1.5,
             "patrolMinTiles": 2,
             "patrolMaxTiles": 4,
             "personalities": [
                 { "name": "friendly-moving", "weight": 4.0 },
                 { "name": "friendly-stopped", "weight": 4.0 },
-                { "name": "hostile", "weight": 1.0 }
+                { "name": "change-axis-aggressive", "weight": 1.0 }
             ]
         }
     },
@@ -40,18 +46,24 @@
         "pivotY": 53.0,
         "behavior": {
             "initialPersonality": "friendly-stopped",
-            "switchSeconds": 12.0,
+            "switchMinSeconds": 2.0,
+            "switchMaxSeconds": 4.0,
+            "hostileMinSeconds": 3.0,
+            "hostileMaxSeconds": 5.0,
+            "transitionFrameSeconds": 0.1,
+            "transitionBlinkSeconds": 0.1,
             "movementSpeed": 32.0,
             "chaseSpeed": 64.0,
             "chaseRepathSeconds": 0.5,
             "chaseMemorySeconds": 4.0,
             "chaseStopDistance": 12.0,
+            "chaseDurationMultiplier": 1.5,
             "patrolMinTiles": 2,
             "patrolMaxTiles": 4,
             "personalities": [
                 { "name": "friendly-moving", "weight": 4.0 },
                 { "name": "friendly-stopped", "weight": 4.0 },
-                { "name": "hostile", "weight": 1.0 }
+                { "name": "change-axis-aggressive", "weight": 1.0 }
             ]
         }
     }

@@ -14,6 +14,15 @@
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
     },
+    "images": {
+        "robot-change-1": "assets/Sprites/Energy/hits-4/sprites/hits-4-1.png",
+        "robot-change-2": "assets/Sprites/Energy/hits-4/sprites/hits-4-2.png",
+        "robot-change-3": "assets/Sprites/Energy/hits-4/sprites/hits-4-3.png",
+        "robot-change-4": "assets/Sprites/Energy/hits-4/sprites/hits-4-4.png",
+        "robot-change-5": "assets/Sprites/Energy/hits-4/sprites/hits-4-5.png",
+        "robot-change-6": "assets/Sprites/Energy/hits-4/sprites/hits-4-6.png",
+        "robot-change-7": "assets/Sprites/Energy/hits-4/sprites/hits-4-7.png"
+    },
     "imageSheet": {
         "room": {
             "path": "assets/Sprites/pixel-cyberpunk-interior.png",
