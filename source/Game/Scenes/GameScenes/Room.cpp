@@ -24,7 +24,7 @@ void Room::init()
 
 void Room::update(float deltaTime)
 {
-    if (!shouldQuit() && !isTransitioning() && !_testDialogShown && std::isfinite(deltaTime) && deltaTime > 0.0f)
+    if (!shouldQuit() && !isPaused() && !isTransitioning() && !_testDialogShown && std::isfinite(deltaTime) && deltaTime > 0.0f)
     {
         _dialogDelay += std::min(deltaTime, 0.25f);
         if (_dialogDelay >= 2.0f)

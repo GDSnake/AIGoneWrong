@@ -13,6 +13,7 @@
 #include "Core/Renderer.h"
 #include "Entities/Entities.h"
 #include "Entities/Sprite.h"
+#include "Game/Scenes/Menus/MainMenu.h"
 
 MapScene::MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale)
     : _mapPath(std::move(mapPath)), _sceneName(std::move(sceneName))
@@ -145,6 +146,27 @@ void MapScene::init()
 
 void MapScene::handleEvents(const SDL_Event& event)
 {
+    if (_pause)
+    {
+        if (!isTransitioning())
+        {
+            _pause->handleEvents(event);
+        }
+        return;
+    }
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.scancode == SDL_SCANCODE_ESCAPE)
+    {
+        if (!isTransitioning())
+        {
+            _pause = std::make_unique<PauseMenu>();
+            _pause->init();
+            auto& audio = AudioManager::getInstance();
+            _resumeMusicAfterPause = audio.isMusicPlaying();
+            audio.pauseMusic();
+            *_input = {};
+        }
+        return;
+    }
     _input->handleEvent(event);
     if (_dialog.isActive() && !isTransitioning() && event.type == SDL_EVENT_KEY_DOWN &&
         !event.key.repeat && event.key.scancode == SDL_SCANCODE_SPACE)
@@ -164,11 +186,16 @@ bool MapScene::shouldQuit() const
     return _input->shouldQuit();
 }
 
+bool MapScene::isPaused() const noexcept
+{
+    return static_cast<bool>(_pause);
+}
+
 void MapScene::handleInput()
 {
-    if (_input->isKeyPressed(SDL_SCANCODE_ESCAPE))
+    if (_pause && !isTransitioning())
     {
-        _input->quit();
+        _pause->handleInput();
     }
 }
 
@@ -176,6 +203,35 @@ void MapScene::update(float deltaTime)
 {
     if (_input->shouldQuit())
     {
+        return;
+    }
+    if (_pause)
+    {
+        if (!isTransitioning())
+        {
+            _pause->update(deltaTime);
+            switch (_pause->consumeAction())
+            {
+                case PauseAction::Resume:
+                    _pause->cleanup();
+                    _pause.reset();
+                    if (_resumeMusicAfterPause)
+                    {
+                        AudioManager::getInstance().resumeMusic();
+                    }
+                    _resumeMusicAfterPause = false;
+                    *_input = {};
+                    break;
+                case PauseAction::MainMenu:
+                    transitionTo(std::make_unique<MainMenu>());
+                    break;
+                case PauseAction::Exit:
+                    requestExit();
+                    break;
+                case PauseAction::None:
+                    break;
+            }
+        }
         return;
     }
     const bool playerInputEnabled = !isTransitioning() && isPlayerControlEnabled() && !_dialog.isActive();
@@ -264,6 +320,10 @@ void MapScene::render()
 #endif
     renderTexts();
     _dialog.render(renderer);
+    if (_pause)
+    {
+        _pause->render();
+    }
 }
 
 void MapScene::renderTexts()
@@ -288,6 +348,12 @@ void MapScene::updateStrings()
 
 void MapScene::cleanup()
 {
+    if (_pause)
+    {
+        _pause->cleanup();
+        _pause.reset();
+    }
+    _resumeMusicAfterPause = false;
     _dialog.cleanup();
     Entities::GetInstance().ClearEntities();
     _level.clear();

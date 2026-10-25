@@ -2,10 +2,10 @@
 
 #include "Credits.h"
 #include "SettingsMenu.h"
+#include "Tutorial.h"
 #include "AssetManagers/AudioManager.h"
-#include "Game/Scenes/GameScenes/Room.h"
 
-MainMenu::MainMenu() : MenuScene("AI GONE WRONG", "MainMenu") {}
+MainMenu::MainMenu() : MenuScene("h-AI-lucinations", "MainMenu") {}
 
 void MainMenu::setup()
 {
@@ -23,7 +23,7 @@ void MainMenu::activate(std::size_t index)
 {
     switch (index)
     {
-        case 0: transitionTo(std::make_unique<Room>()); break;
+        case 0: transitionTo(std::make_unique<Tutorial>()); break;
         case 1: transitionTo(std::make_unique<SettingsMenu>()); break;
         case 2: transitionTo(std::make_unique<Credits>()); break;
         case 3: requestExit(); break;

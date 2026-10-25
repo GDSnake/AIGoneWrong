@@ -7,10 +7,14 @@
 #include "Config/Config.h"
 #include "Core/Renderer.h"
 
-SettingsMenu::SettingsMenu() : MenuScene("Settings", "SettingsMenu") {}
+SettingsMenu::SettingsMenu(bool inGame) : MenuScene("Settings", "SettingsMenu"), _inGame(inGame)
+{
+    _isOverlay = inGame;
+}
 
 void SettingsMenu::setup()
 {
+    _closed = false;
     const auto& config = Config::getInstance().getConfigData();
     _fullscreen = config.fullscreen;
     _resolutions = { { 960, 540 }, { 1280, 720 }, { 1600, 900 }, { 1920, 1080 } };
@@ -20,7 +24,8 @@ void SettingsMenu::setup()
         _resolutions.push_back(current);
     }
     _resolution = static_cast<std::size_t>(std::find(_resolutions.begin(), _resolutions.end(), current) - _resolutions.begin());
-    _items = { { "Resolution", ItemKind::Choice }, { "Fullscreen", ItemKind::Toggle }, { "Apply" }, { "Back" } };
+    _items = { { "Resolution", ItemKind::Choice }, { "Fullscreen", ItemKind::Toggle }, { "Apply" },
+        { _inGame ? "Return" : "Back" } };
 }
 
 void SettingsMenu::activate(std::size_t index)
@@ -84,5 +89,12 @@ void SettingsMenu::apply()
 
 void SettingsMenu::back()
 {
-    transitionTo(std::make_unique<MainMenu>());
+    if (_inGame)
+    {
+        _closed = true;
+    }
+    else
+    {
+        transitionTo(std::make_unique<MainMenu>());
+    }
 }

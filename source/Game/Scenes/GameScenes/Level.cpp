@@ -38,7 +38,7 @@ void Level::init()
 
 void Level::update(float deltaTime)
 {
-    if (_index == 1 && !shouldQuit() && !isTransitioning() && !_introDialogShown &&
+    if (_index == 1 && !shouldQuit() && !isPaused() && !isTransitioning() && !_introDialogShown &&
         std::isfinite(deltaTime) && deltaTime > 0.0f)
     {
         _dialogDelay += std::min(deltaTime, 0.25f);

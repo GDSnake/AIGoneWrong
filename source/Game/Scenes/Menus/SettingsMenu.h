@@ -8,7 +8,8 @@
 class SettingsMenu : public MenuScene
 {
 public:
-    SettingsMenu();
+    explicit SettingsMenu(bool inGame = false);
+    bool isClosed() const noexcept { return _closed; }
 
 private:
     void setup() override;
@@ -21,4 +22,6 @@ private:
     std::vector<std::pair<int, int>> _resolutions;
     std::size_t _resolution = 0;
     bool _fullscreen = false;
+    bool _inGame = false;
+    bool _closed = false;
 };

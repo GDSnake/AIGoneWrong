@@ -38,15 +38,21 @@ protected:
     virtual void adjust(std::size_t index, int direction);
     virtual std::string value(std::size_t index) const;
     virtual void back();
+    virtual SDL_FRect itemBounds(std::size_t index) const;
+    virtual SDL_FRect contentBounds(int width, int height) const;
+    virtual void renderContent(const SDL_FRect& bounds) const;
+    void selectItem(std::size_t index);
+    void resetInputState();
+    void drawLabel(const std::string& text, const SDL_FRect& bounds, const SDL_Color& color, float scale) const;
     void setStatus(std::string message, bool error = false);
 
     std::vector<Item> _items;
     std::vector<std::string> _details;
+    bool _itemsAtBottom = false;
+    bool _isOverlay = false;
 
 private:
-    SDL_FRect itemBounds(std::size_t index) const;
     std::optional<std::size_t> hitTest(const SDL_FPoint& point) const;
-    void drawLabel(const std::string& text, const SDL_FRect& bounds, const SDL_Color& color, float scale) const;
     void drawBackdrop(int width, int height) const;
 
     std::string _title;

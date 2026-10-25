@@ -38,6 +38,7 @@ public:
     }
 
     void toggleMusic() const;
+    bool isMusicPlaying() const noexcept;
 
     void playMusic(AudioTrack music = AudioTrack::BGM) const;
     void stopMusic() const;

@@ -35,6 +35,7 @@ public:
     virtual void cleanup() = 0;
     virtual std::string getName() const = 0;
     virtual bool shouldQuit() const = 0;
+    virtual bool isPaused() const noexcept { return false; }
     void setAnimationSettings(const AnimationSettings& settings);
     bool playAnimation(SceneAnimation animation, float duration = 0.35f);
     void startEntryAnimation();

@@ -54,6 +54,11 @@ void AudioManager::shutdown()
     }
 }
 
+bool AudioManager::isMusicPlaying() const noexcept
+{
+    return _track && MIX_TrackPlaying(_track.get()) && !MIX_TrackPaused(_track.get());
+}
+
 void AudioManager::toggleMusic() const
 {
     if (!_track)

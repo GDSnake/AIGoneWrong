@@ -138,7 +138,10 @@ void Game::update(float dt)
 
     _currentScene->handleInput();
     _currentScene->update(dt);
-    ParticleSystem::GetInstance().update(dt);
+    if (!_currentScene->isPaused())
+    {
+        ParticleSystem::GetInstance().update(dt);
+    }
     _currentScene->updateAnimations(dt);
     _currentScene->render();
     _currentScene->renderAnimations();

@@ -6,6 +6,7 @@
 #include "Config/Config.h"
 #include "Core/TiledLevelLoader.h"
 #include "Game/Scenes/Scene.h"
+#include "Game/Scenes/Menus/PauseMenu.h"
 #include "Game/UI/DialogSystem.h"
 #include "Input/InputManager.h"
 
@@ -24,6 +25,7 @@ public:
     float getViewScale() const noexcept;
     
     bool shouldQuit() const;
+    bool isPaused() const noexcept override;
     void handleEvents(const SDL_Event& event) override;
 
 protected:
@@ -41,6 +43,8 @@ private:
     std::unique_ptr<InputManager> _input;
     TiledLevelLoader _level;
     DialogSystem _dialog;
+    std::unique_ptr<PauseMenu> _pause;
+    bool _resumeMusicAfterPause = false;
     std::shared_ptr<Sprite> _doorSprite;
     std::filesystem::path _mapPath;
     std::string _sceneName;

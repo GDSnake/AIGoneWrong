@@ -66,7 +66,7 @@ struct ImageSheetConfigData {
 };
 
 struct ConfigData {
-    std::string title = "Default Game Name";
+    std::string title = "h-AI-lucinations";
     int width = 1280;
     int height = 720;
     bool fullscreen = false;
@@ -130,16 +130,13 @@ public:
             {
                 throw std::runtime_error("Cannot open configuration for reading");
             }
-
             json data = json::parse(input);
             input.close();
-
             auto window = data.find("window");
             if (window == data.end() || !window->is_object())
             {
                 throw std::runtime_error("Missing or invalid 'window' object");
             }
-
             (*window)["width"] = _data.width;
             (*window)["height"] = _data.height;
             (*window)["fullscreen"] = _data.fullscreen;

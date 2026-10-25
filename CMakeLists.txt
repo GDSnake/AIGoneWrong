@@ -182,7 +182,7 @@ if(NOT EXISTS "${CONFIG_FILE}")
     file(WRITE "${CONFIG_FILE}" [=[
 {
     "window": {
-        "title": "Default Game Name",
+        "title": "h-AI-lucinations",
         "width": 1280,
         "height": 720,
         "fullscreen": false
@@ -197,9 +197,10 @@ if(NOT EXISTS "${CONFIG_FILE}")
 endif()
 
 add_custom_target(${PROJECT_NAME}Config ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CONFIG_FILE}"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    COMMAND ${CMAKE_COMMAND}
+        "-DSOURCE=${CONFIG_FILE}"
+        "-DDESTINATION=$<TARGET_FILE_DIR:${PROJECT_NAME}>/config.json"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyConfigIfNewer.cmake"
     COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Config"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

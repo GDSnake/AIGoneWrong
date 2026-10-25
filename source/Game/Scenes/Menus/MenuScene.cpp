@@ -62,7 +62,7 @@ SDL_FRect MenuScene::itemBounds(std::size_t index) const
     float top = margin + 110.0f;
     float rowHeight = std::clamp((bottom - top - (count - 1.0f) * 12.0f) / count, 24.0f, 52.0f);
     const float totalHeight = rowHeight * count + (count - 1.0f) * 12.0f;
-    if (!_details.empty())
+    if (!_details.empty() || _itemsAtBottom)
     {
         top = bottom - totalHeight;
     }
@@ -85,6 +85,27 @@ std::optional<std::size_t> MenuScene::hitTest(const SDL_FPoint& point) const
         }
     }
     return {};
+}
+
+SDL_FRect MenuScene::contentBounds(int width, int) const
+{
+    const float margin = width < 700 ? 24.0f : 64.0f;
+    const float top = margin + 110.0f;
+    return { margin, top, width - margin * 2.0f, std::max(1.0f, itemBounds(0).y - top - 24.0f) };
+}
+
+void MenuScene::selectItem(std::size_t index)
+{
+    if (!_items.empty())
+    {
+        _selected = index % _items.size();
+    }
+}
+
+void MenuScene::resetInputState()
+{
+    _input = {};
+    _clicked.reset();
 }
 
 void MenuScene::handleEvents(const SDL_Event& event)
@@ -222,10 +243,21 @@ void MenuScene::render()
     {
         return;
     }
-    drawBackdrop(width, height);
+    if (_isOverlay)
+    {
+        renderer.drawOverlay({ 12, 15, 14, 225 });
+    }
+    else
+    {
+        drawBackdrop(width, height);
+    }
     const float margin = width < 700 ? 24.0f : 64.0f;
     drawLabel(_title, { margin, margin, width - margin * 2.0f, 68.0f }, Text, 1.65f);
     renderer.drawFilledRect({ margin, margin + 84.0f, 64.0f, 3.0f }, Pink);
+    if (_itemsAtBottom && !_items.empty())
+    {
+        renderContent(contentBounds(width, height));
+    }
     for (std::size_t index = 0; index < _items.size(); ++index)
     {
         const auto& item = _items[index];
@@ -289,6 +321,7 @@ bool MenuScene::shouldQuit() const { return _input.shouldQuit(); }
 void MenuScene::adjust(std::size_t, int) {}
 std::string MenuScene::value(std::size_t) const { return {}; }
 void MenuScene::back() { requestExit(); }
+void MenuScene::renderContent(const SDL_FRect&) const {}
 void MenuScene::setStatus(std::string message, bool error)
 {
     _status = std::move(message);

@@ -1,0 +1,5 @@
+if(NOT EXISTS "${DESTINATION}" OR "${SOURCE}" IS_NEWER_THAN "${DESTINATION}")
+    get_filename_component(destination_directory "${DESTINATION}" DIRECTORY)
+    file(MAKE_DIRECTORY "${destination_directory}")
+    file(COPY_FILE "${SOURCE}" "${DESTINATION}" ONLY_IF_DIFFERENT)
+endif()

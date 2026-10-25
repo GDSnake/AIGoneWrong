@@ -27,7 +27,7 @@ namespace FontSize
 
 namespace FontText
 {
-    static std::string Title = "Default Game";
+    static std::string Title = "h-AI-lucinations";
     static std::string Exit = "Press ESC to exit";
     // Define the texts you need
     // TODO create a map from a config file
