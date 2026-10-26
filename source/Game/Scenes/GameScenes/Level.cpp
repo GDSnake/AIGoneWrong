@@ -84,10 +84,6 @@ bool Level::isPlayerControlEnabled() const
 
 std::unique_ptr<Scene> Level::createExitScene() const
 {
-    if (_index == 1)
-    {
-        return std::make_unique<Level>(3);
-    }
     if (std::filesystem::is_regular_file(levelMapPath(_index + 1)))
     {
         return std::make_unique<Level>(_index + 1);

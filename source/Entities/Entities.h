@@ -20,6 +20,7 @@ class InputManager;
 class Renderer;
 struct RenderView;
 struct WorldSprite;
+struct TTF_Font;
 
 enum class EntityBehavior : std::uint8_t
 {
@@ -107,10 +108,12 @@ struct Entities
   void SetRobotPersonalityInterval(float minimum, float maximum);
   void SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> frames);
   void SetRobotTeleportEffect(std::vector<std::shared_ptr<Sprite>> frames);
+  void SetReactionSprites(std::shared_ptr<Sprite> speech, std::shared_ptr<Sprite> emotes);
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY,
       std::span<const WorldSprite> props = {}) const;
+  void RenderReactions(const Renderer& renderer, const RenderView& view, TTF_Font* font) const;
 
 #ifdef DEBUG
   void DrawCollisions(const Renderer& renderer, const RenderView& view) const;
@@ -132,10 +135,14 @@ private:
   {
     enum class Phase { Routine, Changing, ReturningHome };
     enum class TeleportPhase { None, Disappearing, Hidden, Appearing };
+    enum class Emote { None, Exclamation, Question };
     RobotPersonality personality = RobotPersonality::FriendlyStopped;
     RobotPersonality pendingPersonality = RobotPersonality::FriendlyStopped;
     Phase phase = Phase::Routine;
     TeleportPhase teleportPhase = TeleportPhase::None;
+    Emote emote = Emote::None;
+    float emoteRemaining = 0.0f;
+    bool playerInView = false;
     SightDirection axisDirection = SightDirection::Down;
     SightDirection patrolDirection = SightDirection::Down;
     float elapsed = 0.0f;
@@ -194,6 +201,7 @@ private:
     void UpdateHostile(std::size_t index, float deltaTime);
     void MoveRobotTowards(std::size_t index, const SDL_FPoint& target, float speed, float deltaTime);
     void UpdateRobotVision(std::size_t index, bool trackingPlayer = false);
+    void UpdateRobotReactions(std::size_t index);
     void UpdateRobotAnimation(std::size_t index);
     bool PlanRobotPatrol(std::size_t index, bool chooseDistance = true);
     float PatrolClearance(std::size_t index, const SDL_FPoint& origin, const SDL_FPoint& translation,
@@ -229,6 +237,10 @@ private:
     std::vector<RobotRuntimeState> _robotStates;
     std::vector<std::shared_ptr<Sprite>> _personalityEffectFrames;
     std::vector<std::shared_ptr<Sprite>> _teleportEffectFrames;
+    std::shared_ptr<Sprite> _speechBubble;
+    std::shared_ptr<Sprite> _robotEmotes;
+    float _playerSpeechRemaining = 0.0f;
+    float _playerSpeechCooldown = 0.0f;
     std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 

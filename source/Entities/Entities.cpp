@@ -419,6 +419,10 @@ void Entities::ClearEntities()
 	_robotStates.assign(PlayerIndex + 1, {});
 	_personalityEffectFrames.clear();
 	_teleportEffectFrames.clear();
+	_speechBubble.reset();
+	_robotEmotes.reset();
+	_playerSpeechRemaining = 0.0f;
+	_playerSpeechCooldown = 0.0f;
 	_personalityIntervalOverride = {};
 	_nameEntities.clear();
 }
@@ -732,11 +736,18 @@ void Entities::Update(float deltaTime, bool robotPersonalityChangesEnabled)
 	_physicsAccumulator += std::min(deltaTime, 0.25f);
 	while (_physicsAccumulator >= PhysicsTimeStep)
 	{
+		if (robotPersonalityChangesEnabled)
+		{
+			_playerSpeechRemaining = std::max(0.0f, _playerSpeechRemaining - PhysicsTimeStep);
+			_playerSpeechCooldown = std::max(0.0f, _playerSpeechCooldown - PhysicsTimeStep);
+			for (auto& state : _robotStates) state.emoteRemaining = std::max(0.0f, state.emoteRemaining - PhysicsTimeStep);
+		}
 		for (std::size_t index = 0; index < _robotTypes.size(); ++index)
 		{
 			if (_robotTypes[index] != RobotType::None)
 			{
 				UpdateRobot(index, PhysicsTimeStep, robotPersonalityChangesEnabled);
+				if (robotPersonalityChangesEnabled) UpdateRobotReactions(index);
 			}
 		}
 		if (b2World_IsValid(_worldId))
@@ -821,6 +832,83 @@ std::span<const ParticleHandle> Entities::GetParticles(std::size_t index) const
 {
 	ValidateIndex(index);
 	return _particlesEntitiesList[index];
+}
+
+void Entities::SetReactionSprites(std::shared_ptr<Sprite> speech, std::shared_ptr<Sprite> emotes)
+{
+	if (!speech || speech->getFrameCount() < 1 || !emotes || emotes->getFrameCount() < 6)
+	{
+		throw std::invalid_argument("Reaction bubbles need one speech panel and six emote frames");
+	}
+	_speechBubble = std::move(speech);
+	_robotEmotes = std::move(emotes);
+}
+
+void Entities::RenderReactions(const Renderer& renderer, const RenderView& view, TTF_Font* font) const
+{
+	int outputWidth = 0, outputHeight = 0;
+	if (!renderer.getOutputSize(outputWidth, outputHeight) || view.scale <= 0.0f) return;
+	const auto& reactions = Config::getInstance().getConfigData().reactions;
+	const SDL_FRect viewport{ 0, 0, static_cast<float>(outputWidth), static_cast<float>(outputHeight) };
+	const auto onScreen = [&](std::size_t index)
+	{
+		const auto sprite = EntityWorldSprite(index);
+		const SDL_FRect screen{ view.offsetX + sprite.destination.x * view.scale, view.offsetY + sprite.destination.y * view.scale,
+			sprite.destination.w * view.scale, sprite.destination.h * view.scale };
+		return SDL_HasRectIntersectionFloat(&screen, &viewport);
+	};
+	std::vector<SDL_FRect> placed;
+	const auto bounds = [&](std::size_t index, float width, float height, float anchor)
+	{
+		const auto sprite = EntityWorldSprite(index);
+		const float bubbleScale = std::min({ view.scale, std::max(1.0f, outputWidth - 8.0f) / width,
+			std::max(1.0f, outputHeight - 8.0f) / height });
+		const float screenWidth = width * bubbleScale, screenHeight = height * bubbleScale;
+		const float positionX = view.offsetX + _xEntities[index] * view.scale - screenWidth * anchor;
+		const float positionY = view.offsetY + (sprite.destination.y - 3.0f) * view.scale - screenHeight;
+		SDL_FRect result{ std::clamp(positionX, 4.0f, std::max(4.0f, outputWidth - screenWidth - 4.0f)),
+			std::clamp(positionY, 4.0f, std::max(4.0f, outputHeight - screenHeight - 4.0f)), screenWidth, screenHeight };
+		for (std::size_t attempt = 0; attempt < placed.size() + 1; ++attempt)
+		{
+			bool overlap = false;
+			for (const auto& other : placed)
+			{
+				if (!SDL_HasRectIntersectionFloat(&result, &other)) continue;
+				overlap = true;
+				if (other.y - result.h - 4.0f >= 4.0f) result.y = other.y - result.h - 4.0f;
+				else if (other.x + other.w + result.w + 8.0f <= outputWidth) result.x = other.x + other.w + 4.0f;
+				else result.x = std::max(4.0f, other.x - result.w - 4.0f);
+			}
+			if (!overlap) break;
+		}
+		placed.push_back(result);
+		return result;
+	};
+	for (std::size_t index = 0; index < _robotTypes.size(); ++index)
+	{
+		if (_robotTypes[index] == RobotType::None || !_visibilityEntities[index] || !_spriteEntities[index] ||
+			!_robotEmotes || _robotStates[index].emoteRemaining <= 0.0f || !onScreen(index)) continue;
+		const auto& state = _robotStates[index];
+		const auto first = state.emote == RobotRuntimeState::Emote::Question ? 3u : 0u;
+		const auto frame = first + static_cast<std::size_t>((reactions.emoteSeconds - state.emoteRemaining) / reactions.emoteFrameSeconds) % 3;
+		const auto& source = _robotEmotes->getSourceRect(frame);
+		renderer.drawTexture(_robotEmotes->getTexture().get(), bounds(index, 24.0f, 24.0f, 0.5f), &source);
+	}
+	if (_speechBubble && _playerSpeechRemaining > 0.0f && _spriteEntities[PlayerIndex] && _visibilityEntities[PlayerIndex] && onScreen(PlayerIndex))
+	{
+		const auto destination = bounds(PlayerIndex, 72.0f, 36.0f, 0.25f);
+		const auto& source = _speechBubble->getSourceRect(0);
+		renderer.drawTexture(_speechBubble->getTexture().get(), destination, &source);
+		float textWidth = 0.0f, textHeight = 0.0f;
+		if (renderer.measureText(font, reactions.playerText, textWidth, textHeight) && textWidth > 0.0f && textHeight > 0.0f)
+		{
+			const float textScale = std::min(destination.w * 0.84f / textWidth, destination.h * 0.5f / textHeight);
+			renderer.drawText(font, reactions.playerText,
+				{ destination.x + (destination.w - textWidth * textScale) * 0.5f,
+					destination.y + destination.h * 0.08f + (destination.h * 0.5f - textHeight * textScale) * 0.5f },
+				{ 30, 30, 35, 255 }, textScale);
+		}
+	}
 }
 
 WorldSprite Entities::EntityWorldSprite(std::size_t index) const

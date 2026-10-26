@@ -75,6 +75,7 @@ RobotPersonality Entities::GetRobotPersonality(std::size_t index) const
 void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personality)
 {
     auto& state = _robotStates[index];
+    const bool wasHostile = state.initialized && !RobotPersonalities[static_cast<std::size_t>(state.personality)].friendly;
     if (state.teleportPhase != RobotRuntimeState::TeleportPhase::None)
     {
         _visibilityEntities[index] = true;
@@ -101,6 +102,11 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.transitionTime = 0.0f;
     state.patrolDistance = 0.0f;
     const bool friendly = RobotPersonalities[static_cast<std::size_t>(personality)].friendly;
+    if (wasHostile && friendly)
+    {
+        state.emote = RobotRuntimeState::Emote::Question;
+        state.emoteRemaining = Config::getInstance().getConfigData().reactions.emoteSeconds;
+    }
     const float homeX = state.home.x - _xEntities[index];
     const float homeY = state.home.y - _yEntities[index];
     state.phase = friendly && homeX * homeX + homeY * homeY > 0.0625f ?
@@ -180,6 +186,38 @@ void Entities::BeginRobotPersonalityChange(std::size_t index, RobotPersonality p
     state.elapsed = 0.0f;
     state.attemptedMovement = false;
     SetVelocity(index, 0.0f, 0.0f);
+}
+
+void Entities::UpdateRobotReactions(std::size_t index)
+{
+    auto& state = _robotStates[index];
+    if (RobotPersonalities[static_cast<std::size_t>(state.personality)].friendly ||
+        state.phase != RobotRuntimeState::Phase::Routine ||
+        state.teleportPhase != RobotRuntimeState::TeleportPhase::None || !_nameEntities.contains(PlayerName))
+    {
+        state.playerInView = false;
+        return;
+    }
+    const auto vision = _visionStates[index];
+    _visionStates[index] = VisionState::Unaware;
+    UpdateRobotVision(index);
+    const bool inView = _visionStates[index] != VisionState::Unaware;
+    _visionStates[index] = vision;
+    if (inView && !state.playerInView)
+    {
+        const auto& reactions = Config::getInstance().getConfigData().reactions;
+        if (state.emote != RobotRuntimeState::Emote::Question || state.emoteRemaining <= 0.0f)
+        {
+            state.emote = RobotRuntimeState::Emote::Exclamation;
+            state.emoteRemaining = reactions.emoteSeconds;
+        }
+        if (_playerSpeechCooldown <= 0.0f)
+        {
+            _playerSpeechRemaining = reactions.speechSeconds;
+            _playerSpeechCooldown = reactions.speechCooldownSeconds;
+        }
+    }
+    state.playerInView = inView;
 }
 
 void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityChangesEnabled)

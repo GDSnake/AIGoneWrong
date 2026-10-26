@@ -97,9 +97,7 @@ Windows SDL packages live under `libs/<toolchain>/`. CMake fetches other depende
 
 Normal entry is `MainMenu -> Tutorial -> Room -> Level 1`.
 
-**Important current exception:** the user intentionally changed Level 1's exit to **Level 3**. Do not silently restore Level 1 -> Level 2. Level 2 is still available through Debug scene selection.
-
-For other numbered levels, exit checks for `assets/Maps/Level_{next:02}.json`: load it when present, otherwise enter Office. Currently Level 2 -> Level 3 and Level 3 -> Office. Adding Level 4 automatically makes Level 3 -> Level 4 -> Office. Office completes to MainMenu.
+Numbered levels progress sequentially: **Level 1 -> Level 2 -> Level 3 -> Office**. Exit checks for `assets/Maps/Level_{next:02}.json`: load it when present, otherwise enter Office. Do not skip Level 2. Adding Level 4 automatically makes Level 3 -> Level 4 -> Office. Office completes to MainMenu.
 
 - Movement: WASD or arrow keys.
 - Dialog advance: a fresh Space press.
@@ -151,6 +149,15 @@ Currently integrated types are ScoutBot, TrooperBot, and MedusaDrone. More robot
 - Random destinations are in a 100-pixel disk around departure, constrained by map bounds, full-collider floor coverage, walls/doors, and actors. Blank space inside the rectangular map is not valid floor.
 - After becoming friendly, return to the original spawn. If return takes 2 seconds, trigger the same teleport effect sequence targeting home rather than a random point. Complete arrival before restarting friendly rotation/countdown; arrival handling must precede timeout checks to avoid an endless effect loop.
 - Tune rotation speed, radius, hidden/frame durations, attempts, and return timeout in the Medusa profile, not hardcoded per scene.
+
+## Reaction Bubbles
+
+- Root `config.json` has a `reactions` section: player text `Yikes!`, speech duration 1 second, shared player cooldown 10 seconds, robot emote duration 1 second, frame interval 0.1 seconds.
+- Entering a hostile robot's actual cone with terrain LOS raises an animated `!` and may show player speech. This is an entry event, not a continuous retrigger. All robot types support it, but friendly personalities do not trigger spotting emotes or player speech. The hostile-to-friendly `?` event remains separate.
+- A committed hostile-to-friendly change raises `?`, which takes priority over a coincident `!`. Initial friendly spawn does not raise a question mark.
+- Speech uses the first panel from `assets/Sprites/UI/single-line-tilemap.png`; emotes use six explicit cells from `bubble emotes july update.png` (three exclamation frames, then three question frames). Preserve these config registrations when changing UI assets.
+- Reaction timers respect gameplay control locks and pause, and clear with scene entities. The player cooldown is shared across all robots in the current scene.
+- `Entities::RenderReactions` draws after world props using the shared camera, before dialog/pause overlays. Offscreen and hidden actors do not leave edge bubbles; visible bubbles fit the viewport and stack to reduce overlap.
 
 ## Maps and Tiled Authoring
 

@@ -74,6 +74,8 @@ void MapScene::init()
             teleportFrames.push_back(std::move(effect));
         }
         Entities::GetInstance().SetRobotTeleportEffect(std::move(teleportFrames));
+        Entities::GetInstance().SetReactionSprites(SpriteManager::getInstance().getSprite("speech-bubble"),
+            SpriteManager::getInstance().getSprite("robot-emotes"));
         auto sprite = SpriteManager::getInstance().getSprite("player");
         if (!sprite)
         {
@@ -403,6 +405,7 @@ void MapScene::render()
         Entities::GetInstance().DrawCollisions(renderer, view);
     }
 #endif
+    Entities::GetInstance().RenderReactions(renderer, view, _titleFont);
     renderTexts();
     _dialog.render(renderer);
     if (_pause)

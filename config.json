@@ -6,6 +6,13 @@
         "fullscreen": false
     },
     "start_entities_number": 10,
+    "reactions": {
+        "player_text": "Yikes!",
+        "speech_seconds": 1.0,
+        "speech_cooldown_seconds": 10.0,
+        "emote_seconds": 1.0,
+        "emote_frame_seconds": 0.1
+    },
     "view_scales": {
         "Room": 1.0,
         "Level_01": 2.0,
@@ -39,6 +46,23 @@
         "robot-teleport-7": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview7.png"
     },
     "imageSheet": {
+        "speech-bubble": {
+            "path": "assets/Sprites/UI/single-line-tilemap.png",
+            "frames": [
+                { "x": 0, "y": 0, "width": 320, "height": 160 }
+            ]
+        },
+        "robot-emotes": {
+            "path": "assets/Sprites/UI/bubble emotes july update.png",
+            "frames": [
+                { "x": 0, "y": 128, "width": 16, "height": 16 },
+                { "x": 16, "y": 128, "width": 16, "height": 16 },
+                { "x": 32, "y": 128, "width": 16, "height": 16 },
+                { "x": 48, "y": 128, "width": 16, "height": 16 },
+                { "x": 64, "y": 128, "width": 16, "height": 16 },
+                { "x": 80, "y": 128, "width": 16, "height": 16 }
+            ]
+        },
         "room": {
             "path": "assets/Sprites/pixel-cyberpunk-interior.png",
             "frame_width": 32,

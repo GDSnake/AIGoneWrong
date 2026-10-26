@@ -65,6 +65,15 @@ struct ImageSheetConfigData {
     std::vector<Frame> frames;
 };
 
+struct ReactionConfigData
+{
+    std::string playerText = "Yikes!";
+    float speechSeconds = 1.0f;
+    float speechCooldownSeconds = 10.0f;
+    float emoteSeconds = 1.0f;
+    float emoteFrameSeconds = 0.1f;
+};
+
 struct ConfigData {
     std::string title = "h-AI-lucinations";
     int width = 1280;
@@ -73,6 +82,7 @@ struct ConfigData {
     int targetFPS = 60;
     int startEntitiesNumber = 10;
     bool hasError = false;
+    ReactionConfigData reactions;
     std::unordered_map<std::string, ImageConfigData> images;
     std::unordered_map<std::string, ImageSheetConfigData> imageSheets;
     std::unordered_map<std::string, std::string> fonts;
@@ -222,6 +232,26 @@ public:
             if (cfg.startEntitiesNumber < 0)
             {
                 throw std::runtime_error("start_entities_number must not be negative");
+            }
+
+            if (const auto reactions = data.find("reactions"); reactions != data.end())
+            {
+                if (!reactions->is_object())
+                {
+                    throw std::runtime_error("reactions must be an object");
+                }
+                cfg.reactions.playerText = reactions->value("player_text", cfg.reactions.playerText);
+                cfg.reactions.speechSeconds = reactions->value("speech_seconds", cfg.reactions.speechSeconds);
+                cfg.reactions.speechCooldownSeconds = reactions->value("speech_cooldown_seconds", cfg.reactions.speechCooldownSeconds);
+                cfg.reactions.emoteSeconds = reactions->value("emote_seconds", cfg.reactions.emoteSeconds);
+                cfg.reactions.emoteFrameSeconds = reactions->value("emote_frame_seconds", cfg.reactions.emoteFrameSeconds);
+                const std::array times{ cfg.reactions.speechSeconds, cfg.reactions.speechCooldownSeconds,
+                    cfg.reactions.emoteSeconds, cfg.reactions.emoteFrameSeconds };
+                if (cfg.reactions.playerText.empty() || std::any_of(times.begin(), times.end(),
+                    [](float value) { return !std::isfinite(value) || value <= 0.0f; }))
+                {
+                    throw std::runtime_error("Reaction text must be nonempty and durations must be positive and finite");
+                }
             }
 
             if (const auto scales = data.find("view_scales"); scales != data.end())
