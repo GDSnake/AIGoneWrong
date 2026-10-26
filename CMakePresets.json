@@ -5,7 +5,7 @@
       "name": "windows-ninja",
       "displayName": "Windows (Ninja Multi-Config)",
       "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/../out/build/windows-ninja"
+      "binaryDir": "${sourceDir}/out/build/windows-ninja"
     }
   ],
   "buildPresets": [
