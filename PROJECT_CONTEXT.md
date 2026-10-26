@@ -87,6 +87,8 @@ Windows SDL packages live under `libs/<toolchain>/`. CMake fetches other depende
 ## Configuration
 
 - [config.json](config.json): window settings, initial entity capacity, per-scene zoom, audio keys, image/sheet registrations, and fonts.
+- In-game dialog boxes and speech bubbles use `fonts.dialogFont` (`assets/Fonts/arial.ttf`, `FontNames::DialogFont`); menus/title text retain the separate `fonts.defaultFont` pixel font.
+- Bottom dialog body text uses scale `1.5` (twice its original `0.75`); the panel grows vertically as needed, within the viewport. Overhead speech bubbles remain at their original `36x18` world-pixel size, and robot emotes remain `14.4x14.4`. Do not enlarge overhead bubbles when changing bottom dialog text.
 - [Config/robotProperties.json](Config/robotProperties.json): robot sprite keys, scale/pivots, colliders, vision, behavior intervals, weighted personalities, movement/chase, rotation, and teleport tuning.
 - Source config and the copied runtime config are separate files. The game loads config at startup; restart it after changing source zoom or registrations and refresh the build's config/assets.
 - Settings saves merge only window width/height/fullscreen into the working-directory config. Preserve other keys, including `view_scales`; do not restore an AppData settings system.
@@ -111,7 +113,15 @@ Victory shows "Congratulations", the requested two closing sentences, and [asset
 - In-game Settings: Apply stays on Settings; Return or Escape goes back to Pause, not directly into gameplay.
 - Game Over freezes gameplay, stops music, and offers Restart Level or Main Menu. Restart recreates the same scene/index/zoom.
 - Scene handoffs use shared fades. Clean up the previous scene before initializing its replacement; keep a single final presentation step in the game loop.
-- Room has a four-panel unnamed wake-up monologue after its one-second `Zzz` lead-in: sleepy morning, odd AI dream, forgotten name, then yesterday's pizza/work. Preserve the authored wording and line breaks; fresh Space advances each panel and movement stays locked until the last is dismissed. Level 1 still has a placeholder intro dialog; preserve other user-authored narrative edits unless asked to change them.
+- Room has a four-panel unnamed wake-up monologue after its one-second `Zzz` lead-in: sleepy morning, odd AI dream, forgotten name, then yesterday's pizza/work. Preserve the authored wording and line breaks; fresh Space advances each panel and movement stays locked until the last is dismissed. Level 1's test intro depends on whether the player ate the pizza; preserve other user-authored narrative edits unless asked to change them.
+
+### Pizza Interaction and Progress
+
+- The authored Room point `pizzaEat` triggers once when the player's feet enter a 16-pixel radius during active gameplay. Intro dialogs, pause, scene fades, and Game Over do not consume it.
+- Eating hides the topmost map tile at that point and shows `Yummy!` above the player for one second. `TiledLevelLoader::hideTileAt` changes runtime opacity only, preserving furniture/floor, tile indexes, and the exported JSON.
+- Room and numbered Level scenes carry `_pizzaEaten`; Room transfers it through `Level::setPizzaEaten`, and scene restarts/progression preserve it. An eaten Room restart also hides the pizza again. A new Room/game starts uneaten. This is current-run state, not a persistent disk save or window config setting.
+- Level 1 shows exactly `test text pizza` if eaten, otherwise `test text no pizza`. Its existing speaker and intro timing remain unchanged.
+- Derived map scenes can use protected `getMap()` for map interactions and `isGameplayActive()` for the same control/dialog/pause/fade gates as normal gameplay.
 
 ## Entity and Physics Invariants
 

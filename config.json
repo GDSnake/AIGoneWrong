@@ -31,7 +31,8 @@
         "credits_music": "assets/Audio/Music/Misty Bog.mp3"
     },
     "fonts": {
-        "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
+        "defaultFont": "assets/Fonts/NotJamToolkit15.ttf",
+        "dialogFont": "assets/Fonts/arial.ttf"
     },
     "images": {
         "robot-change-1": "assets/Sprites/Energy/hits-4/sprites/hits-4-1.png",

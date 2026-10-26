@@ -64,9 +64,16 @@ void DialogSystem::render(const Renderer& renderer) const
         return;
     }
     const float boxWidth = std::min({ 900.0f, width - 48.0f, (height - 96.0f) * 4.0f });
-    const float boxHeight = boxWidth * 0.25f;
-    const SDL_FRect box{ (width - boxWidth) * 0.5f, height - 24.0f - boxHeight, boxWidth, boxHeight };
     const auto& line = _lines[_currentLine];
+    constexpr float textScale = 1.5f;
+    float textWidth = 0.0f;
+    float textHeight = 0.0f;
+    float boxHeight = boxWidth * 0.25f;
+    if (renderer.measureTextWrapped(_font, line.text, std::max(1.0f, boxWidth - 80.0f) / textScale, textWidth, textHeight))
+    {
+        boxHeight = std::min(height - 96.0f, std::max(boxHeight, textHeight * textScale + 48.0f));
+    }
+    const SDL_FRect box{ (width - boxWidth) * 0.5f, height - 24.0f - boxHeight, boxWidth, boxHeight };
     renderer.drawTexture(_box.get(), box);
     if (!line.characterName.empty())
     {
@@ -84,7 +91,7 @@ void DialogSystem::render(const Renderer& renderer) const
         }
     }
     renderer.drawTextWrapped(_font, line.text, { box.x + 24.0f, box.y + 24.0f, box.w - 80.0f, box.h - 48.0f },
-        { 235, 241, 250, 255 }, 0.75f);
+        { 235, 241, 250, 255 }, textScale);
     renderer.drawTexture(_arrow.get(), { box.x + box.w - 48.0f, box.y + box.h - 44.0f, 32.0f, 32.0f });
 }
 

@@ -809,6 +809,17 @@ std::optional<TiledSpawnPoint> TiledLevelLoader::getSpawn(std::string_view name)
     return *spawn;
 }
 
+bool TiledLevelLoader::hideTileAt(const SDL_FPoint& position)
+{
+    const auto tile = std::find_if(_tiles.rbegin(), _tiles.rend(), [&position](const Tile& entry)
+    {
+        return entry.opacity > 0.0f && SDL_PointInRectFloat(&position, &entry.destination);
+    });
+    if (tile == _tiles.rend()) return false;
+    tile->opacity = 0.0f;
+    return true;
+}
+
 std::span<const TiledSpawnPoint> TiledLevelLoader::getSpawns() const noexcept
 {
     return _spawns;

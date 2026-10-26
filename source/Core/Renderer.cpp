@@ -406,6 +406,20 @@ bool Renderer::getOutputSize(int& width, int& height) const
     return _renderer && SDL_GetRenderOutputSize(_renderer, &width, &height);
 }
 
+bool Renderer::measureTextWrapped(TTF_Font* font, const std::string& text, float wrapWidth, float& width, float& height) const
+{
+    int textWidth = 0;
+    int textHeight = 0;
+    if (!font || text.empty() || !std::isfinite(wrapWidth) || wrapWidth <= 0.0f ||
+        !TTF_GetStringSizeWrapped(font, text.c_str(), text.size(), static_cast<int>(std::max(1.0f, wrapWidth)), &textWidth, &textHeight))
+    {
+        return false;
+    }
+    width = static_cast<float>(textWidth);
+    height = static_cast<float>(textHeight);
+    return true;
+}
+
 void Renderer::drawTextWrapped(TTF_Font* font, const std::string& text, const SDL_FRect& bounds,
     const SDL_Color& color, float scale) const
 {

@@ -44,6 +44,7 @@ public:
     void render(const Renderer& renderer, const RenderView& view,
         const std::function<void(std::size_t, float, float, float, std::span<const WorldSprite>)>& renderEntities = {}) const;
     std::optional<TiledSpawnPoint> getSpawn(std::string_view name) const;
+    bool hideTileAt(const SDL_FPoint& position);
     std::span<const TiledSpawnPoint> getSpawns() const noexcept;
     std::span<const TiledDoor> getDoors() const noexcept;
     std::span<const TiledRobotSpawn> getRobotSpawns() const noexcept;

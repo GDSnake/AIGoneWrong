@@ -34,6 +34,8 @@ protected:
     virtual std::unique_ptr<Scene> createExitScene() const;
     virtual std::unique_ptr<Scene> createRestartScene() const = 0;
     virtual bool isPlayerControlEnabled() const;
+    bool isGameplayActive() const;
+    TiledLevelLoader& getMap() noexcept { return _level; }
     void showDialog(std::vector<DialogLine> lines);
 
 private:
@@ -60,5 +62,6 @@ private:
 
     // Text
     TTF_Font* _titleFont = nullptr;
+    TTF_Font* _dialogFont = nullptr;
     std::string _titleText;
 };

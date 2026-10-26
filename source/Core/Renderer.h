@@ -69,6 +69,7 @@ public:
     void drawTextWrapped(TTF_Font* font, const std::string& text, const SDL_FRect& bounds,
         const SDL_Color& color, float scale = 1.0f) const;
     bool measureText(TTF_Font* font, const std::string& text, float& width, float& height) const;
+    bool measureTextWrapped(TTF_Font* font, const std::string& text, float wrapWidth, float& width, float& height) const;
     bool getOutputSize(int& width, int& height) const;
     SDL_FPoint windowToRender(const SDL_FPoint& point) const;
     SDL_Window* getWindow() const noexcept;

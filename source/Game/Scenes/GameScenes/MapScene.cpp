@@ -170,7 +170,8 @@ void MapScene::init()
     //Add all the texts you need for the scene
 
     _titleFont = FontsManager::getInstance().getFont(TitleFontInfo.fontName);
-    if (!_dialog.init(Renderer::getInstance(), _titleFont))
+    _dialogFont = FontsManager::getInstance().getFont(FontNames::DialogFont);
+    if (!_dialog.init(Renderer::getInstance(), _dialogFont))
     {
         _input->quit();
     }
@@ -310,7 +311,7 @@ void MapScene::update(float deltaTime)
         }
         return;
     }
-    const bool playerInputEnabled = !isTransitioning() && isPlayerControlEnabled() && !_dialog.isActive();
+    const bool playerInputEnabled = isGameplayActive();
     if (isTransitioning())
     {
         Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
@@ -409,7 +410,7 @@ void MapScene::render()
         Entities::GetInstance().DrawCollisions(renderer, view);
     }
 #endif
-    Entities::GetInstance().RenderReactions(renderer, view, _titleFont);
+    Entities::GetInstance().RenderReactions(renderer, view, _dialogFont);
     renderTexts();
     _dialog.render(renderer);
     if (_pause)
@@ -472,6 +473,12 @@ std::string MapScene::getName() const
 bool MapScene::isPlayerControlEnabled() const
 {
     return true;
+}
+
+bool MapScene::isGameplayActive() const
+{
+    return _input && !_input->shouldQuit() && !isPaused() && !isTransitioning() &&
+        isPlayerControlEnabled() && !_dialog.isActive();
 }
 
 void MapScene::showDialog(std::vector<DialogLine> lines)

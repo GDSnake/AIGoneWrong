@@ -9,6 +9,7 @@ public:
     void init() override;
     void update(float deltaTime) override;
     void cleanup() override;
+    bool hasEatenPizza() const noexcept { return _pizzaEaten; }
 
 protected:
     std::unique_ptr<Scene> createExitScene() const override;
@@ -18,4 +19,5 @@ protected:
 private:
     float _dialogDelay = 0.0f;
     bool _testDialogShown = false;
+    bool _pizzaEaten = false;
 };

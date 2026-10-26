@@ -23,6 +23,7 @@ using json = nlohmann::json;
 enum class FontNames : uint8_t
 {
     DefaultFont = 0,
+    DialogFont,
     // Add font names as needed
     Total
 };
@@ -34,6 +35,7 @@ namespace FontUtils
         switch (name)
         {
             case FontNames::DefaultFont: return "defaultFont";
+            case FontNames::DialogFont: return "dialogFont";
 
             // Add more font names as needed
 

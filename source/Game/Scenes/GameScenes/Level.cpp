@@ -61,7 +61,7 @@ void Level::update(float deltaTime)
         if (_dialogDelay >= 1.0f)
         {
             _introDialogShown = true;
-            showDialog({ { "#generate# Ivalez", "Test text" } });
+            showDialog({ { "#generate# Ivalez", _pizzaEaten ? "test text pizza" : "test text no pizza" } });
         }
     }
     MapScene::update(deltaTime);
@@ -90,12 +90,16 @@ std::unique_ptr<Scene> Level::createExitScene() const
 {
     if (std::filesystem::is_regular_file(levelMapPath(_index + 1)))
     {
-        return std::make_unique<Level>(_index + 1);
+        auto scene = std::make_unique<Level>(_index + 1);
+        scene->setPizzaEaten(_pizzaEaten);
+        return scene;
     }
     return std::make_unique<Office>();
 }
 
 std::unique_ptr<Scene> Level::createRestartScene() const
 {
-    return std::make_unique<Level>(_index, getViewScale());
+    auto scene = std::make_unique<Level>(_index, getViewScale());
+    scene->setPizzaEaten(_pizzaEaten);
+    return scene;
 }
