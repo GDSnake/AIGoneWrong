@@ -167,6 +167,19 @@
                  "width":0,
                  "x":64.4317,
                  "y":155.82
+                }, 
+                {
+                 "height":0,
+                 "id":9,
+                 "name":"pizzaEat",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":207.759476766086,
+                 "y":170.941341642982
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -215,7 +228,7 @@
          "y":0
         }],
  "nextlayerid":11,
- "nextobjectid":9,
+ "nextobjectid":10,
  "orientation":"orthogonal",
  "renderorder":"left-down",
  "tiledversion":"1.12.2",

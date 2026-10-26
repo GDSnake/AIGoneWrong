@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="9">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="left-down" width="11" height="9" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="10">
  <editorsettings>
   <export target="../assets/Maps/room.json" format="json"/>
  </editorsettings>
@@ -85,6 +85,9 @@
  </objectgroup>
  <objectgroup id="6" name="Player">
   <object id="1" name="PlayerSpawn" x="64.4317" y="155.82">
+   <point/>
+  </object>
+  <object id="9" name="pizzaEat" x="207.759" y="170.941">
    <point/>
   </object>
  </objectgroup>

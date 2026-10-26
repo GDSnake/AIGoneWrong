@@ -34,7 +34,12 @@ void Room::update(float deltaTime)
         {
             _testDialogShown = true;
             Entities::GetInstance().ClearPlayerSpeech();
-            showDialog({ { "#generate_character_name#", "Test text" } });
+            showDialog({
+                { "", "Ummm... ahhh...\nI feel sleepy today" },
+                { "", "That was such an odd dream...\nAI taking control of things and making me..." },
+                { "", "...forget my name...oh boy...\nI don't remember..." },
+                { "", "Odd thing...well just grab yesterday's\nPizza and go to work..." }
+            });
         }
     }
     MapScene::update(deltaTime);

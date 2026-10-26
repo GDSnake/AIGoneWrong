@@ -40,6 +40,7 @@ protected:
     virtual void back();
     virtual SDL_FRect itemBounds(std::size_t index) const;
     virtual SDL_FRect contentBounds(int width, int height) const;
+    virtual void drawBackdrop(int width, int height) const;
     virtual void renderContent(const SDL_FRect& bounds) const;
     void selectItem(std::size_t index);
     void resetInputState();
@@ -56,7 +57,6 @@ protected:
 private:
     std::optional<std::size_t> hitTest(const SDL_FPoint& point) const;
     void scrollDetails(float amount);
-    void drawBackdrop(int width, int height) const;
 
     std::string _title;
     std::string _sceneName;

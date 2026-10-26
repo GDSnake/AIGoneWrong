@@ -2,7 +2,7 @@
 
 #include "AssetManagers/AudioManager.h"
 #include "Config/Config.h"
-#include "Game/Scenes/Menus/MainMenu.h"
+#include "Game/Scenes/Menus/Victory.h"
 
 Office::Office()
     : MapScene("assets/Maps/Office.json", "Office", Config::getInstance().getViewScale("Office"))
@@ -11,6 +11,7 @@ Office::Office()
 
 void Office::init()
 {
+    _victoryMusicHandoff = false;
     MapScene::init();
     if (!shouldQuit())
     {
@@ -20,13 +21,18 @@ void Office::init()
 
 void Office::cleanup()
 {
-    AudioManager::getInstance().stopMusic();
+    if (!_victoryMusicHandoff)
+    {
+        AudioManager::getInstance().stopMusic();
+    }
     MapScene::cleanup();
 }
 
 std::unique_ptr<Scene> Office::createExitScene() const
 {
-    return std::make_unique<MainMenu>();
+    auto scene = std::make_unique<Victory>();
+    _victoryMusicHandoff = true;
+    return scene;
 }
 
 std::unique_ptr<Scene> Office::createRestartScene() const

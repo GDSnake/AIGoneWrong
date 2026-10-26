@@ -3,7 +3,8 @@ param(
     [string]$OutputDirectory = $PSScriptRoot,
     [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
     [switch]$PageArtOnly,
-    [switch]$IconsOnly
+    [switch]$IconsOnly,
+    [switch]$VictoryArtOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -437,6 +438,116 @@ namespace ItchCoverBuild
             }
         }
 
+        private static void WreckagePart(Graphics graphics, Bitmap sprite, Rectangle crop,
+            int centerX, int feetY, int scale, RotateFlipType rotation, bool cracked = false)
+        {
+            using (var part = sprite.Clone(crop, PixelFormat.Format32bppArgb))
+            {
+                part.RotateFlip(rotation);
+                for (int pixelY = 0; pixelY < part.Height; pixelY++)
+                for (int pixelX = 0; pixelX < part.Width; pixelX++)
+                {
+                    Color color = part.GetPixel(pixelX, pixelY);
+                    if (color.A == 0)
+                        continue;
+                    bool optic = color.R > color.G * 1.4 && color.R > color.B * 1.1;
+                    part.SetPixel(pixelX, pixelY, optic ? Ink("#503a3d", color.A) :
+                        Color.FromArgb(color.A, color.R * 4 / 5, color.G * 4 / 5,
+                            color.B * 4 / 5));
+                }
+                if (cracked)
+                {
+                    for (int pixelX = part.Width / 5; pixelX < part.Width * 4 / 5; pixelX++)
+                    {
+                        int pixelY = part.Height / 2 + (pixelX / 3) % 3;
+                        if (pixelY < part.Height && part.GetPixel(pixelX, pixelY).A > 0)
+                            part.SetPixel(pixelX, pixelY, Ink("#10191d"));
+                        if (pixelY + 1 < part.Height && part.GetPixel(pixelX, pixelY + 1).A > 0)
+                            part.SetPixel(pixelX, pixelY + 1, Ink("#788382"));
+                    }
+                }
+                Sprite(graphics, part, centerX, feetY, scale);
+            }
+        }
+
+        public static void RenderVictoryArt(string projectRoot)
+        {
+            string directory = Path.Combine(projectRoot, "assets/Sprites/UI");
+            Directory.CreateDirectory(directory);
+            using (var scoutSheet = new Bitmap(Path.Combine(projectRoot,
+                "assets/Sprites/Robots/ScoutBot/sheets/scout_idle.png")))
+            using (var trooperSheet = new Bitmap(Path.Combine(projectRoot,
+                "assets/Sprites/Robots/TrooperBot/sheets/trooper_idle.png")))
+            using (var playerSheet = new Bitmap(Path.Combine(projectRoot,
+                "assets/Sprites/Character 1.png")))
+            using (var scout = Frame(scoutSheet, 0, 0))
+            using (var trooper = Frame(trooperSheet, 0, 0))
+            using (var player = Frame(playerSheet, 0, 2))
+            using (var artwork = new Bitmap(960, 288, PixelFormat.Format32bppArgb))
+            using (var graphics = Graphics.FromImage(artwork))
+            {
+                Configure(graphics);
+                graphics.Clear(Color.Transparent);
+                Polygon(graphics, "#1b282b", 245, new Point(127, 174),
+                    new Point(818, 174), new Point(922, 263), new Point(37, 263));
+                Line(graphics, "#344449", 127, 174, 818, 174, 2);
+                Line(graphics, "#344449", 37, 263, 922, 263, 2);
+                foreach (int floorY in new[] { 195, 223, 254 })
+                    Line(graphics, "#101c23", 68, floorY, 886, floorY, 2);
+                for (int floorX = 80; floorX < 940; floorX += 108)
+                    Line(graphics, "#101c23", 480 + (floorX - 480) * 3 / 4,
+                        175, floorX, 262, 2);
+
+                Fill(graphics, "#0b141a", 114, 227, 221, 12, 220);
+                Fill(graphics, "#0b141a", 611, 234, 224, 12, 220);
+                Fill(graphics, "#0b141a", 447, 193, 67, 9, 230);
+                Sprite(graphics, player, 480, 200, 3, "#bce2ae", 125);
+                Sprite(graphics, player, 480, 197, 3);
+
+                int scoutSplit = scout.Height * 7 / 10;
+                int trooperSplit = trooper.Height * 7 / 10;
+                WreckagePart(graphics, scout, new Rectangle(0, scoutSplit,
+                    scout.Width, scout.Height - scoutSplit), 148, 238, 3,
+                    RotateFlipType.Rotate270FlipNone);
+                WreckagePart(graphics, scout, new Rectangle(0, 0, scout.Width,
+                    scoutSplit), 248, 233, 3, RotateFlipType.Rotate90FlipNone, true);
+                WreckagePart(graphics, trooper, new Rectangle(0, trooperSplit,
+                    trooper.Width, trooper.Height - trooperSplit), 799, 243, 3,
+                    RotateFlipType.Rotate90FlipNone);
+                WreckagePart(graphics, trooper, new Rectangle(0, 0, trooper.Width,
+                    trooperSplit), 687, 235, 3, RotateFlipType.Rotate270FlipNone, true);
+
+                Line(graphics, "#10191d", 284, 213, 318, 213, 5);
+                Line(graphics, "#b79965", 286, 213, 316, 213, 2);
+                Line(graphics, "#b79965", 316, 213, 316, 227, 2);
+                Line(graphics, "#b79965", 316, 227, 334, 227, 2);
+                Line(graphics, "#c27676", 641, 219, 613, 219, 2);
+                Line(graphics, "#c27676", 613, 219, 613, 232, 2);
+                Line(graphics, "#c27676", 613, 232, 594, 232, 2);
+                Fill(graphics, "#8c9e9d", 347, 239, 15, 6);
+                Fill(graphics, "#3b5056", 349, 241, 10, 4);
+                Fill(graphics, "#879c92", 578, 246, 10, 6);
+                Fill(graphics, "#596a70", 387, 221, 8, 4);
+                Fill(graphics, "#70878a", 839, 253, 14, 4);
+                Fill(graphics, "#c1d8ca", 128, 252, 5, 5);
+                Fill(graphics, "#8d9b9e", 322, 247, 5, 5);
+
+                Fill(graphics, "#91a2aa", 244, 123, 12, 9, 85);
+                Fill(graphics, "#91a2aa", 250, 107, 17, 11, 60);
+                Fill(graphics, "#91a2aa", 257, 88, 20, 12, 35);
+                Fill(graphics, "#91a2aa", 686, 150, 12, 8, 80);
+                Fill(graphics, "#91a2aa", 679, 132, 15, 10, 50);
+                Fill(graphics, "#91a2aa", 670, 113, 18, 10, 30);
+                Fill(graphics, "#e6cd87", 333, 214, 5, 5);
+                Fill(graphics, "#f2e5b6", 338, 202, 3, 6);
+                Fill(graphics, "#e6cd87", 345, 212, 6, 3);
+                Fill(graphics, "#b4d7cf", 591, 220, 4, 4);
+                Fill(graphics, "#b4d7cf", 583, 213, 3, 3);
+
+                artwork.Save(Path.Combine(directory, "victory-robots.png"), ImageFormat.Png);
+            }
+        }
+
         private static Bitmap ScoutLogo(Bitmap head, int size)
         {
             var result = new Bitmap(size, size, PixelFormat.Format32bppArgb);
@@ -552,10 +663,14 @@ $renderer = Add-Type -TypeDefinition $rendererSource.Replace('ItchCoverBuild', $
     Where-Object { $_.Name -eq 'CoverRenderer' }
 [System.IO.Directory]::CreateDirectory($OutputDirectory) | Out-Null
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
-if ($PageArtOnly -and $IconsOnly) {
-    throw 'Choose either -PageArtOnly or -IconsOnly.'
+$selectedModes = @($PageArtOnly, $IconsOnly, $VictoryArtOnly) | Where-Object { $_.IsPresent }
+if (@($selectedModes).Count -gt 1) {
+    throw 'Choose only one of -PageArtOnly, -IconsOnly, or -VictoryArtOnly.'
 }
-if ($IconsOnly) {
+if ($VictoryArtOnly) {
+    $renderer::RenderVictoryArt($ProjectRoot)
+    $exportPaths = @(Join-Path $ProjectRoot 'assets/Sprites/UI/victory-robots.png')
+} elseif ($IconsOnly) {
     $renderer::RenderIcons($ProjectRoot, $outputPath)
     $exportPaths = @(
         (Join-Path $outputPath 'game-logo.png'),

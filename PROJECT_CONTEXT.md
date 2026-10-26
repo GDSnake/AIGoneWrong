@@ -71,6 +71,7 @@ Windows SDL packages live under `libs/<toolchain>/`. CMake fetches other depende
 | Shared map gameplay, camera, pause, dialog, Game Over | [source/Game/Scenes/GameScenes/MapScene.cpp](source/Game/Scenes/GameScenes/MapScene.cpp) |
 | Numbered levels and progression | [source/Game/Scenes/GameScenes/Level.cpp](source/Game/Scenes/GameScenes/Level.cpp) |
 | Finale | [source/Game/Scenes/GameScenes/Office.cpp](source/Game/Scenes/GameScenes/Office.cpp) |
+| Victory screen | [source/Game/Scenes/Menus/Victory.cpp](source/Game/Scenes/Menus/Victory.cpp) |
 | Packed entities, physics, animation, rendering | [source/Entities/Entities.h](source/Entities/Entities.h), [source/Entities/Entities.cpp](source/Entities/Entities.cpp) |
 | Robot decisions, perception, patrol, chase, teleport | [source/Entities/Robot.cpp](source/Entities/Robot.cpp) |
 | Shared robot types and tuning schema | [source/Types/RobotTypes.h](source/Types/RobotTypes.h) |
@@ -97,7 +98,9 @@ Windows SDL packages live under `libs/<toolchain>/`. CMake fetches other depende
 
 Normal entry is `MainMenu -> Tutorial -> Room -> Level 1`.
 
-Numbered levels progress sequentially: **Level 1 -> Level 2 -> Level 3 -> Office**. Exit checks for `assets/Maps/Level_{next:02}.json`: load it when present, otherwise enter Office. Do not skip Level 2. Adding Level 4 automatically makes Level 3 -> Level 4 -> Office. Office completes to MainMenu.
+Numbered levels progress sequentially: **Level 1 -> Level 2 -> Level 3 -> Office -> Victory -> MainMenu**. Exit checks for `assets/Maps/Level_{next:02}.json`: load it when present, otherwise enter Office. Do not skip Level 2. Adding Level 4 automatically makes Level 3 -> Level 4 -> Office. Successful Office completion opens Victory, not MainMenu directly.
+
+Victory shows "Congratulations", the requested two closing sentences, and [assets/Sprites/UI/victory-robots.png](assets/Sprites/UI/victory-robots.png). A fresh Space, Enter/keypad Enter, or the Main Menu button returns to MainMenu; repeated key events are ignored. Its backdrop replaces the usual live robots.
 
 - Movement: WASD or arrow keys.
 - Dialog advance: a fresh Space press.
@@ -108,7 +111,7 @@ Numbered levels progress sequentially: **Level 1 -> Level 2 -> Level 3 -> Office
 - In-game Settings: Apply stays on Settings; Return or Escape goes back to Pause, not directly into gameplay.
 - Game Over freezes gameplay, stops music, and offers Restart Level or Main Menu. Restart recreates the same scene/index/zoom.
 - Scene handoffs use shared fades. Clean up the previous scene before initializing its replacement; keep a single final presentation step in the game loop.
-- Room and Level 1 contain placeholder intro dialogs. Preserve user-authored speaker text and other narrative edits unless asked to change them.
+- Room has a four-panel unnamed wake-up monologue after its one-second `Zzz` lead-in: sleepy morning, odd AI dream, forgotten name, then yesterday's pizza/work. Preserve the authored wording and line breaks; fresh Space advances each panel and movement stays locked until the last is dismissed. Level 1 still has a placeholder intro dialog; preserve other user-authored narrative edits unless asked to change them.
 
 ## Entity and Physics Invariants
 
@@ -204,6 +207,9 @@ Music is registered under `sound` in the root config and selected through `Audio
 | Level 2 | `Infiltration.flac` |
 | Level 3 | `UNATCO.mp3` |
 | Office | `Costa del Sol.mp3` |
+| Victory | Office's ongoing `Costa del Sol.mp3` playback |
+
+Office hands its music to Victory only after successful completion, without stopping or restarting the track. Restarting or leaving Office through other routes still stops music normally. Victory cleanup stops its track before MainMenu starts its own music. Regenerate the transparent destroyed-robot illustration with `marketing/GenerateCover.ps1 -VictoryArtOnly` using the same explicit project/output paths as the other artwork modes.
 
 Preserve supplied licenses and Credits entries, including the Garbage sample, Future Sound of London, Norihiko Hibino / Metal Gear Solid 2: Sons of Liberty, Michiel van den Bos / Deus Ex, and Nobuo Uematsu / Final Fantasy VII attribution.
 
