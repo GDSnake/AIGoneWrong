@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "AssetManagers/AudioManager.h"
+#include "Config/Config.h"
 #include "Entities/Entities.h"
 #include "Game/Scenes/Menus/MainMenu.h"
 
@@ -19,6 +20,11 @@ namespace
         }
         return std::filesystem::path("assets/Maps") / std::format("Level_{:02}.json", index);
     }
+}
+
+Level::Level(int index)
+    : Level(index, Config::getInstance().getViewScale(std::format("Level_{:02}", index)))
+{
 }
 
 Level::Level(int index, float viewScale)
@@ -80,7 +86,7 @@ std::unique_ptr<Scene> Level::createExitScene() const
 {
     if (_index == 1)
     {
-        return std::make_unique<Level>(2, getViewScale());
+        return std::make_unique<Level>(3);
     }
     return _index == 2 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
 }

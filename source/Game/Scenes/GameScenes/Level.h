@@ -5,7 +5,8 @@
 class Level : public MapScene
 {
 public:
-    explicit Level(int index, float viewScale = 1.0f);
+    explicit Level(int index);
+    Level(int index, float viewScale);
     void init() override;
     void update(float deltaTime) override;
     void cleanup() override;

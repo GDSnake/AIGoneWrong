@@ -594,6 +594,12 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                         continue;
                     }
 
+                    if (layer.value("name", std::string{}) == "floor")
+                    {
+                        _floorTiles.push_back({ static_cast<float>(tileX) * tileWidth + offsetX,
+                            static_cast<float>(tileY) * tileHeight + offsetY,
+                            static_cast<float>(tileWidth), static_cast<float>(tileHeight) });
+                    }
                     if (collisionLayer)
                     {
                         _collisions.push_back({ static_cast<float>(tileX) * tileWidth + offsetX,
@@ -772,6 +778,11 @@ std::span<const SDL_FRect> TiledLevelLoader::getCollisions() const noexcept
     return _collisions;
 }
 
+std::span<const SDL_FRect> TiledLevelLoader::getFloorTiles() const noexcept
+{
+    return _floorTiles;
+}
+
 std::span<const std::vector<SDL_FPoint>> TiledLevelLoader::getFrameCollisions() const noexcept
 {
     return _frameCollisions;
@@ -792,6 +803,7 @@ void TiledLevelLoader::clear()
     _tiles.clear();
     _textures.clear();
     _collisions.clear();
+    _floorTiles.clear();
     _frameCollisions.clear();
     _spawns.clear();
     _doors.clear();

@@ -5,9 +5,10 @@
 
 #include "Level.h"
 #include "AssetManagers/AudioManager.h"
+#include "Config/Config.h"
 
 Room::Room()
-    : MapScene("assets/Maps/room.json", "Room")
+    : MapScene("assets/Maps/room.json", "Room", Config::getInstance().getViewScale("Room"))
 {
 }
 
@@ -49,7 +50,7 @@ bool Room::isPlayerControlEnabled() const
 
 std::unique_ptr<Scene> Room::createExitScene() const
 {
-    return std::make_unique<Level>(1, 2.0f);
+    return std::make_unique<Level>(1);
 }
 
 std::unique_ptr<Scene> Room::createRestartScene() const

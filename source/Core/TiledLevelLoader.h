@@ -49,6 +49,7 @@ public:
     std::span<const TiledRobotSpawn> getRobotSpawns() const noexcept;
     void setDoorFrame(std::size_t index, SDL_Texture* texture, const SDL_FRect& source);
     std::span<const SDL_FRect> getCollisions() const noexcept;
+    std::span<const SDL_FRect> getFloorTiles() const noexcept;
     std::span<const std::vector<SDL_FPoint>> getFrameCollisions() const noexcept;
     SDL_FRect getBounds() const noexcept;
     SDL_FPoint getTileSize() const noexcept;
@@ -68,6 +69,7 @@ private:
     std::vector<Renderer::Texture> _textures;
     std::vector<Tile> _tiles;
     std::vector<SDL_FRect> _collisions;
+    std::vector<SDL_FRect> _floorTiles;
     std::vector<std::vector<SDL_FPoint>> _frameCollisions;
     std::vector<TiledSpawnPoint> _spawns;
     std::vector<TiledDoor> _doors;

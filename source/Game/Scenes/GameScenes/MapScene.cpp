@@ -15,6 +15,11 @@
 #include "Entities/Sprite.h"
 #include "Game/Scenes/Menus/MainMenu.h"
 
+#ifdef DEBUG
+#include "Level.h"
+#include "Room.h"
+#endif
+
 MapScene::MapScene(std::filesystem::path mapPath, std::string sceneName, float viewScale)
     : _mapPath(std::move(mapPath)), _sceneName(std::move(sceneName))
 {
@@ -42,7 +47,8 @@ void MapScene::init()
     }
     try
     {
-        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions(), _level.getTileSize());
+        Entities::GetInstance().InitializePhysics(_level.getCollisions(), _level.getBounds(), _level.getFrameCollisions(),
+            _level.getTileSize(), _level.getFloorTiles());
         std::vector<std::shared_ptr<Sprite>> personalityFrames;
         for (int frame = 1; frame <= 7; ++frame)
         {
@@ -278,6 +284,17 @@ void MapScene::update(float deltaTime)
                 case PauseAction::Exit:
                     requestExit();
                     break;
+#ifdef DEBUG
+                case PauseAction::DebugLevel1:
+                    transitionTo(std::make_unique<Level>(1));
+                    break;
+                case PauseAction::DebugLevel2:
+                    transitionTo(std::make_unique<Level>(2));
+                    break;
+                case PauseAction::DebugRoom:
+                    transitionTo(std::make_unique<Room>());
+                    break;
+#endif
                 case PauseAction::None:
                     break;
             }

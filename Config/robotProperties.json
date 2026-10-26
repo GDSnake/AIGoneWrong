@@ -96,6 +96,7 @@
             "teleportRadius": 100.0,
             "teleportHiddenSeconds": 0.5,
             "teleportFrameSeconds": 0.1,
+            "returnHomeTeleportSeconds": 2.0,
             "teleportAttempts": 64,
             "patrolMinTiles": 2,
             "patrolMaxTiles": 4,

@@ -89,7 +89,8 @@ struct Entities
   Entities& operator=(const Entities&) = delete;
 
   void InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
-      std::span<const std::vector<SDL_FPoint>> frameCollisions = {}, SDL_FPoint tileSize = { 32.0f, 32.0f });
+      std::span<const std::vector<SDL_FPoint>> frameCollisions = {}, SDL_FPoint tileSize = { 32.0f, 32.0f },
+      std::span<const SDL_FRect> floorTiles = {});
   void SetVelocity(std::size_t index, float velocityX, float velocityY);
   void UpdateControllers(const InputManager& input, bool playerInputEnabled = true);
   std::span<const DoorVisualChange> GetDoorVisualChanges() const noexcept;
@@ -146,6 +147,7 @@ private:
     float rotationAngle = 0.0f;
     float rotationProgress = 0.0f;
     float teleportTime = 0.0f;
+    float returnHomeTime = 0.0f;
     SDL_FPoint teleportOrigin{};
     SDL_FPoint home{};
     SDL_FPoint patrolOrigin{};
@@ -231,6 +233,7 @@ private:
     float _physicsAccumulator = 0.0f;
     SDL_FPoint _tileSize{ 32.0f, 32.0f };
     SDL_FRect _mapBounds{};
+    std::vector<SDL_FRect> _floorTiles;
     SDL_FPoint _personalityIntervalOverride{};
     std::mt19937 _robotRandom{ std::random_device{}() };
     bool _sceneExitRequested = false;

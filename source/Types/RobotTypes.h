@@ -84,6 +84,7 @@ struct RobotBehaviorSettings
     float teleportRadius = 100.0f;
     float teleportHiddenSeconds = 0.5f;
     float teleportFrameSeconds = 0.1f;
+    float returnHomeTeleportSeconds = 2.0f;
     int teleportAttempts = 64;
     int patrolMinTiles = 2;
     int patrolMaxTiles = 4;

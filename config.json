@@ -6,6 +6,12 @@
         "fullscreen": false
     },
     "start_entities_number": 10,
+    "view_scales": {
+        "Room": 1.0,
+        "Level_01": 2.0,
+        "Level_02": 2.5,
+        "Level_03": 3.0
+    },
     "sound": {
         "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",
         "room_music": "assets/Audio/Music/QueerSample.flac",

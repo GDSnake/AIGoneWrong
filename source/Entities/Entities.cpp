@@ -386,6 +386,7 @@ void Entities::ClearEntities()
 	_physicsAccumulator = 0.0f;
 	_tileSize = { 32.0f, 32.0f };
 	_mapBounds = {};
+	_floorTiles.clear();
 	_sceneExitRequested = false;
 	_playerCaught = false;
 	_doorVisualChanges.clear();
@@ -490,7 +491,7 @@ EntityData Entities::GetEntity(const std::string& name) const
 }
 
 void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SDL_FRect& bounds,
-	std::span<const std::vector<SDL_FPoint>> frameCollisions, SDL_FPoint tileSize)
+	std::span<const std::vector<SDL_FPoint>> frameCollisions, SDL_FPoint tileSize, std::span<const SDL_FRect> floorTiles)
 {
 	if (!_nameEntities.empty())
 	{
@@ -505,6 +506,7 @@ void Entities::InitializePhysics(std::span<const SDL_FRect> collisions, const SD
 	ClearEntities();
 	_tileSize = tileSize;
 	_mapBounds = bounds;
+	_floorTiles.assign(floorTiles.begin(), floorTiles.end());
 	b2WorldDef definition = b2DefaultWorldDef();
 	definition.gravity = { 0.0f, 0.0f };
 	_worldId = b2CreateWorld(&definition);
@@ -973,6 +975,27 @@ void Entities::DrawCollisions(const Renderer& renderer, const RenderView& view) 
 			static_cast<Uint8>((color >> 8) & 0xff), static_cast<Uint8>(color & 0xff), 255 });
 	};
 	b2World_Draw(_worldId, &draw);
+	constexpr std::size_t segments = 64;
+	for (std::size_t index = 0; index < _robotTypes.size(); ++index)
+	{
+		if (_robotTypes[index] != RobotType::MedusaDrone)
+		{
+			continue;
+		}
+		const auto& state = _robotStates[index];
+		const bool departing = state.teleportPhase == RobotRuntimeState::TeleportPhase::Disappearing ||
+			state.teleportPhase == RobotRuntimeState::TeleportPhase::Hidden;
+		const SDL_FPoint origin = departing ? state.teleportOrigin : SDL_FPoint{ _xEntities[index], _yEntities[index] };
+		const float radius = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.teleportRadius;
+		std::array<SDL_FPoint, segments + 1> points{};
+		for (std::size_t segment = 0; segment <= segments; ++segment)
+		{
+			const float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(segment) / segments;
+			points[segment] = { view.offsetX + (origin.x + std::cos(angle) * radius) * view.scale,
+				view.offsetY + (origin.y + std::sin(angle) * radius) * view.scale };
+		}
+		renderer.drawLines(points, { 60, 220, 240, 255 });
+	}
 }
 #endif
 

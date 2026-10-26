@@ -25,6 +25,26 @@ void PauseMenu::handleEvents(const SDL_Event& event)
     }
     else
     {
+#ifdef DEBUG
+        if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
+        {
+            switch (event.key.scancode)
+            {
+                case SDL_SCANCODE_1:
+                case SDL_SCANCODE_KP_1:
+                    _action = PauseAction::DebugLevel1;
+                    return;
+                case SDL_SCANCODE_2:
+                case SDL_SCANCODE_KP_2:
+                    _action = PauseAction::DebugLevel2;
+                    return;
+                case SDL_SCANCODE_R:
+                    _action = PauseAction::DebugRoom;
+                    return;
+                default: break;
+            }
+        }
+#endif
         Tutorial::handleEvents(event);
     }
 }

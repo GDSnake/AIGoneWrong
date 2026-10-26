@@ -8,7 +8,12 @@ enum class PauseAction
     None,
     Resume,
     MainMenu,
-    Exit
+    Exit,
+#ifdef DEBUG
+    DebugLevel1,
+    DebugLevel2,
+    DebugRoom,
+#endif
 };
 
 class PauseMenu : public Tutorial

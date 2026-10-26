@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.2" name="industrial" tilewidth="32" tileheight="32" tilecount="851" columns="37">
  <image source="../../Sprites/tileset x1.png" width="1184" height="736"/>
+ <tile id="39">
+  <objectgroup draworder="index" id="2">
+   <object id="1" x="0" y="1" width="7.5" height="30"/>
+  </objectgroup>
+ </tile>
+ <tile id="45">
+  <objectgroup draworder="index" id="2">
+   <object id="1" x="24" y="0" width="7" height="31.5"/>
+  </objectgroup>
+ </tile>
  <tile id="46">
   <objectgroup draworder="index" id="2">
    <object id="1" x="0" y="0">

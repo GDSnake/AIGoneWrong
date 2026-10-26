@@ -77,6 +77,7 @@ struct ConfigData {
     std::unordered_map<std::string, ImageSheetConfigData> imageSheets;
     std::unordered_map<std::string, std::string> fonts;
     std::unordered_map<std::string, std::string> audio;
+    std::unordered_map<std::string, float> viewScales;
     std::array<RobotProfile, static_cast<std::size_t>(RobotType::Count)> robotProfiles{};
 };
 
@@ -102,6 +103,12 @@ public:
     const RobotProfile& getRobotProfile(RobotType type) const
     {
         return _data.robotProfiles.at(static_cast<std::size_t>(type));
+    }
+
+    float getViewScale(const std::string& sceneName) const
+    {
+        const auto scale = _data.viewScales.find(sceneName);
+        return scale == _data.viewScales.end() ? 1.0f : scale->second;
     }
 
     inline void setWindowSettings(int width, int height, bool fullscreen) noexcept
@@ -215,6 +222,27 @@ public:
             if (cfg.startEntitiesNumber < 0)
             {
                 throw std::runtime_error("start_entities_number must not be negative");
+            }
+
+            if (const auto scales = data.find("view_scales"); scales != data.end())
+            {
+                if (!scales->is_object())
+                {
+                    throw std::runtime_error("view_scales must be an object");
+                }
+                for (const auto& [sceneName, value] : scales->items())
+                {
+                    if (sceneName.empty() || !value.is_number())
+                    {
+                        throw std::runtime_error("view_scales must map nonempty scene names to numbers");
+                    }
+                    const float scale = value.get<float>();
+                    if (!std::isfinite(scale) || scale <= 0.0f)
+                    {
+                        throw std::runtime_error("view_scales values must be positive and finite");
+                    }
+                    cfg.viewScales.emplace(sceneName, scale);
+                }
             }
 
             if (const auto sound = data.find("sound"); sound != data.end())
@@ -365,6 +393,7 @@ private:
         behavior.teleportRadius = data.value("teleportRadius", behavior.teleportRadius);
         behavior.teleportHiddenSeconds = data.value("teleportHiddenSeconds", behavior.teleportHiddenSeconds);
         behavior.teleportFrameSeconds = data.value("teleportFrameSeconds", behavior.teleportFrameSeconds);
+        behavior.returnHomeTeleportSeconds = data.value("returnHomeTeleportSeconds", behavior.returnHomeTeleportSeconds);
         behavior.teleportAttempts = data.value("teleportAttempts", behavior.teleportAttempts);
         behavior.patrolMinTiles = data.value("patrolMinTiles", behavior.patrolMinTiles);
         behavior.patrolMaxTiles = data.value("patrolMaxTiles", behavior.patrolMaxTiles);
@@ -393,7 +422,7 @@ private:
             throw std::runtime_error("Config/robotProperties.json: chase duration multiplier must be finite and at least one");
         }
         const std::array rotationValues{ behavior.rotationSpeedDegrees, behavior.teleportRadius,
-            behavior.teleportHiddenSeconds, behavior.teleportFrameSeconds };
+            behavior.teleportHiddenSeconds, behavior.teleportFrameSeconds, behavior.returnHomeTeleportSeconds };
         if (std::any_of(rotationValues.begin(), rotationValues.end(), [](float value) { return !std::isfinite(value) || value <= 0.0f; }) ||
             behavior.teleportAttempts < 1 || behavior.teleportAttempts > 1024)
         {

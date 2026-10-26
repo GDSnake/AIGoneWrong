@@ -82,6 +82,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     }
     state.teleportPhase = RobotRuntimeState::TeleportPhase::None;
     state.teleportTime = 0.0f;
+    state.returnHomeTime = 0.0f;
     state.rotationProgress = 0.0f;
     const auto direction = Directions[static_cast<std::size_t>(_sightDirections[index])];
     state.rotationAngle = std::atan2(direction.y, direction.x);
@@ -101,7 +102,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     const bool friendly = RobotPersonalities[static_cast<std::size_t>(personality)].friendly;
     const float homeX = state.home.x - _xEntities[index];
     const float homeY = state.home.y - _yEntities[index];
-    state.phase = friendly && personality != RobotPersonality::FriendlyRotating && homeX * homeX + homeY * homeY > 0.0625f ?
+    state.phase = friendly && homeX * homeX + homeY * homeY > 0.0625f ?
         RobotRuntimeState::Phase::ReturningHome : RobotRuntimeState::Phase::Routine;
     if (friendly)
     {
@@ -424,6 +425,23 @@ bool Entities::CanRobotTeleportTo(std::size_t index, const SDL_FPoint& position)
     {
         return false;
     }
+    if (!_floorTiles.empty())
+    {
+        const SDL_FRect collider{ position.x - halfWidth, position.y - height, halfWidth * 2.0f, height + 1.0f };
+        float floorArea = 0.0f;
+        for (const auto& tile : _floorTiles)
+        {
+            SDL_FRect intersection{};
+            if (SDL_GetRectIntersectionFloat(&collider, &tile, &intersection))
+            {
+                floorArea += intersection.w * intersection.h;
+            }
+        }
+        if (floorArea + 0.001f < collider.w * collider.h)
+        {
+            return false;
+        }
+    }
     b2ShapeProxy proxy{};
     proxy.count = 4;
     proxy.points[0] = { (position.x - halfWidth) / PixelsPerMeter, (position.y - height) / PixelsPerMeter };
@@ -466,9 +484,10 @@ void Entities::UpdateRobotTeleport(std::size_t index, float deltaTime)
     }
     else if (state.teleportPhase == RobotRuntimeState::TeleportPhase::Hidden && state.teleportTime >= behavior.teleportHiddenSeconds)
     {
-        SDL_FPoint destination = state.teleportOrigin;
-        bool found = false;
-        for (int attempt = 0; attempt < behavior.teleportAttempts; ++attempt)
+        const bool returningHome = state.phase == RobotRuntimeState::Phase::ReturningHome;
+        SDL_FPoint destination = returningHome ? state.home : state.teleportOrigin;
+        bool found = returningHome;
+        for (int attempt = 0; !found && attempt < behavior.teleportAttempts; ++attempt)
         {
             const float angle = std::uniform_real_distribution<float>(0.0f, 2.0f * std::numbers::pi_v<float>)(_robotRandom);
             const float radius = std::sqrt(std::uniform_real_distribution<float>(0.0f, 1.0f)(_robotRandom)) * behavior.teleportRadius;
@@ -516,6 +535,7 @@ void Entities::UpdateRobotReturnHome(std::size_t index, float deltaTime)
     if (deltaX * deltaX + deltaY * deltaY <= 0.0625f)
     {
         state.phase = RobotRuntimeState::Phase::Routine;
+        state.returnHomeTime = 0.0f;
         state.elapsed = 0.0f;
         state.switchDelay = NextRobotPersonalityDelay(index);
         state.patrolDistance = 0.0f;
@@ -523,11 +543,24 @@ void Entities::UpdateRobotReturnHome(std::size_t index, float deltaTime)
         state.nextWaypoint = 0;
         state.attemptedMovement = false;
         _sightDirections[index] = state.axisDirection;
-        if (state.personality == RobotPersonality::FriendlyStopped)
+        if (state.personality == RobotPersonality::FriendlyStopped || state.personality == RobotPersonality::FriendlyRotating)
         {
             b2Body_SetType(_bodyIds[index], b2_staticBody);
         }
         return;
+    }
+    if (_robotTypes[index] == RobotType::MedusaDrone)
+    {
+        state.returnHomeTime += deltaTime;
+        const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
+        if (state.returnHomeTime >= behavior.returnHomeTeleportSeconds)
+        {
+            state.teleportPhase = RobotRuntimeState::TeleportPhase::Disappearing;
+            state.teleportTime = 0.0f;
+            state.teleportOrigin = position;
+            SetVelocity(index, 0.0f, 0.0f);
+            return;
+        }
     }
     state.repathTime -= deltaTime;
     if (state.repathTime <= 0.0f)
