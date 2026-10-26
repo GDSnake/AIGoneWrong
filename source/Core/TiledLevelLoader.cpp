@@ -419,7 +419,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                 {
                     const auto& object = *entry;
                     const auto objectClass = object.value("class", object.value("type", std::string{}));
-                    if (objectClass == "ScoutBot" || objectClass == "TrooperBot")
+                    if (objectClass == "ScoutBot" || objectClass == "TrooperBot" || objectClass == "MedusaDrone")
                     {
                         const auto name = object.value("name", std::string{});
                         const SDL_FPoint position{ object.at("x").get<float>() + offsetX,
@@ -439,7 +439,8 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                         {
                             throw std::runtime_error("Robot direction must be up, down, left, or right: " + name);
                         }
-                        const RobotType type = objectClass == "ScoutBot" ? RobotType::ScoutBot : RobotType::TrooperBot;
+                        const RobotType type = objectClass == "ScoutBot" ? RobotType::ScoutBot :
+                            (objectClass == "TrooperBot" ? RobotType::TrooperBot : RobotType::MedusaDrone);
                         _robotSpawns.push_back({ name, position,
                             { type, static_cast<SightDirection>(std::distance(directions.begin(), found)) }, renderLayer });
                         continue;

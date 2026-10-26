@@ -36,6 +36,10 @@ void Level::init()
         Entities::GetInstance().SetRobotPersonalityInterval(1.0f, 1.0f);
         AudioManager::getInstance().playMusic(AudioTrack::Level1);
     }
+    else if (_index == 2 && !shouldQuit())
+    {
+        AudioManager::getInstance().playMusic(AudioTrack::Level2);
+    }
 }
 
 void Level::update(float deltaTime)
@@ -55,7 +59,7 @@ void Level::update(float deltaTime)
 
 void Level::cleanup()
 {
-    if (_index == 1)
+    if (_index == 1 || _index == 2)
     {
         AudioManager::getInstance().stopMusic();
     }
@@ -74,7 +78,11 @@ bool Level::isPlayerControlEnabled() const
 
 std::unique_ptr<Scene> Level::createExitScene() const
 {
-    return _index == 1 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
+    if (_index == 1)
+    {
+        return std::make_unique<Level>(2, getViewScale());
+    }
+    return _index == 2 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
 }
 
 std::unique_ptr<Scene> Level::createRestartScene() const

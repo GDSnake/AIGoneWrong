@@ -2,7 +2,8 @@
 param(
     [string]$OutputDirectory = $PSScriptRoot,
     [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
-    [switch]$PageArtOnly
+    [switch]$PageArtOnly,
+    [switch]$IconsOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,7 @@ Add-Type -AssemblyName System.Drawing
 
 $rendererSource = @'
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -435,6 +437,76 @@ namespace ItchCoverBuild
             }
         }
 
+        private static Bitmap ScoutLogo(Bitmap head, int size)
+        {
+            var result = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+            using (var graphics = Graphics.FromImage(result))
+            {
+                Configure(graphics);
+                graphics.Clear(Color.Transparent);
+                int margin = Math.Max(1, size / 16);
+                float scale = Math.Min((size - margin * 2) / (float)head.Width,
+                    (size - margin * 2) / (float)head.Height);
+                if (scale >= 1)
+                    scale = (float)Math.Floor(scale);
+                int width = Math.Max(1, (int)Math.Round(head.Width * scale));
+                int height = Math.Max(1, (int)Math.Round(head.Height * scale));
+                graphics.DrawImage(head, new Rectangle((size - width) / 2,
+                    (size - height) / 2, width, height),
+                    new Rectangle(0, 0, head.Width, head.Height), GraphicsUnit.Pixel);
+            }
+            return result;
+        }
+
+        public static void RenderIcons(string projectRoot, string outputDirectory)
+        {
+            string iconDirectory = Path.Combine(projectRoot, "assets/Icons");
+            Directory.CreateDirectory(iconDirectory);
+            using (var sheet = new Bitmap(Path.Combine(projectRoot,
+                "assets/Sprites/Robots/ScoutBot/sheets/scout_idle.png")))
+            using (var head = sheet.Clone(new Rectangle(20, 7, 24, 35),
+                PixelFormat.Format32bppArgb))
+            using (var logo = ScoutLogo(head, 512))
+            using (var windowIcon = ScoutLogo(head, 256))
+            {
+                logo.Save(Path.Combine(outputDirectory, "game-logo.png"), ImageFormat.Png);
+                windowIcon.Save(Path.Combine(iconDirectory, "game-icon.png"), ImageFormat.Png);
+                int[] sizes = { 16, 20, 24, 32, 40, 48, 64, 128, 256 };
+                var images = new List<byte[]>();
+                foreach (int size in sizes)
+                {
+                    using (var icon = ScoutLogo(head, size))
+                    using (var stream = new MemoryStream())
+                    {
+                        icon.Save(stream, ImageFormat.Png);
+                        images.Add(stream.ToArray());
+                    }
+                }
+                using (var writer = new BinaryWriter(File.Create(Path.Combine(iconDirectory,
+                    "game.ico"))))
+                {
+                    writer.Write((ushort)0);
+                    writer.Write((ushort)1);
+                    writer.Write((ushort)sizes.Length);
+                    uint offset = (uint)(6 + sizes.Length * 16);
+                    for (int index = 0; index < sizes.Length; index++)
+                    {
+                        writer.Write((byte)(sizes[index] == 256 ? 0 : sizes[index]));
+                        writer.Write((byte)(sizes[index] == 256 ? 0 : sizes[index]));
+                        writer.Write((byte)0);
+                        writer.Write((byte)0);
+                        writer.Write((ushort)1);
+                        writer.Write((ushort)32);
+                        writer.Write((uint)images[index].Length);
+                        writer.Write(offset);
+                        offset += (uint)images[index].Length;
+                    }
+                    foreach (byte[] image in images)
+                        writer.Write(image);
+                }
+            }
+        }
+
         public static void Render(string projectRoot, string outputDirectory)
         {
             using (var fonts = new PrivateFontCollection())
@@ -480,12 +552,24 @@ $renderer = Add-Type -TypeDefinition $rendererSource.Replace('ItchCoverBuild', $
     Where-Object { $_.Name -eq 'CoverRenderer' }
 [System.IO.Directory]::CreateDirectory($OutputDirectory) | Out-Null
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
-if ($PageArtOnly) {
+if ($PageArtOnly -and $IconsOnly) {
+    throw 'Choose either -PageArtOnly or -IconsOnly.'
+}
+if ($IconsOnly) {
+    $renderer::RenderIcons($ProjectRoot, $outputPath)
+    $exportPaths = @(
+        (Join-Path $outputPath 'game-logo.png'),
+        (Join-Path $ProjectRoot 'assets/Icons/game-icon.png'),
+        (Join-Path $ProjectRoot 'assets/Icons/game.ico')
+    )
+} elseif ($PageArtOnly) {
     $renderer::RenderPageArt($ProjectRoot, $outputPath)
-    $exportNames = @('itch-banner.png', 'itch-banner-2x.png', 'itch-background.png')
+    $exportPaths = @('itch-banner.png', 'itch-banner-2x.png', 'itch-background.png') |
+        ForEach-Object { Join-Path $outputPath $_ }
 } else {
     $renderer::Render($ProjectRoot, $outputPath)
-    $exportNames = @('itch-cover.png', 'itch-cover-2x.png')
+    $exportPaths = @('itch-cover.png', 'itch-cover-2x.png') |
+        ForEach-Object { Join-Path $outputPath $_ }
 }
-$exportNames | ForEach-Object { Get-Item (Join-Path $outputPath $_) } |
+$exportPaths | ForEach-Object { Get-Item $_ } |
     Select-Object Name, Length, FullName

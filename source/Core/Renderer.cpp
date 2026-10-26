@@ -36,6 +36,13 @@ bool Renderer::init()
         shutdown();
         return false;
     }
+
+    std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> icon(
+        IMG_Load("assets/Icons/game-icon.png"), SDL_DestroySurface);
+    if (!icon || !SDL_SetWindowIcon(_window, icon.get()))
+    {
+        SDL_Log("Window icon could not be set: %s", SDL_GetError());
+    }
     return true;
 }
 

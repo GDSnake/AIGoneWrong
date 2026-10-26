@@ -9,7 +9,8 @@
     "sound": {
         "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",
         "room_music": "assets/Audio/Music/QueerSample.flac",
-        "level_1_music": "assets/Audio/Music/Dead Cities Cut.flac"
+        "level_1_music": "assets/Audio/Music/Dead Cities Cut.flac",
+        "level_2_music": "assets/Audio/Music/Infiltration.flac"
     },
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"
@@ -21,7 +22,14 @@
         "robot-change-4": "assets/Sprites/Energy/hits-4/sprites/hits-4-4.png",
         "robot-change-5": "assets/Sprites/Energy/hits-4/sprites/hits-4-5.png",
         "robot-change-6": "assets/Sprites/Energy/hits-4/sprites/hits-4-6.png",
-        "robot-change-7": "assets/Sprites/Energy/hits-4/sprites/hits-4-7.png"
+        "robot-change-7": "assets/Sprites/Energy/hits-4/sprites/hits-4-7.png",
+        "robot-teleport-1": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview1.png",
+        "robot-teleport-2": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview2.png",
+        "robot-teleport-3": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview3.png",
+        "robot-teleport-4": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview4.png",
+        "robot-teleport-5": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview5.png",
+        "robot-teleport-6": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview6.png",
+        "robot-teleport-7": "assets/Sprites/Energy/Hits-6/sprites/hits-6-preview7.png"
     },
     "imageSheet": {
         "room": {
@@ -70,6 +78,20 @@
             "path": "assets/Sprites/Robots/TrooperBot/sheets/trooper_walk.png",
             "frame_width": 64,
             "frame_height": 64,
+            "columns": 8,
+            "rows": 8
+        },
+        "MedusaDrone": {
+            "path": "assets/Sprites/Robots/MedusaDrone/sheets/jelly_idle.png",
+            "frame_width": 96,
+            "frame_height": 96,
+            "columns": 8,
+            "rows": 8
+        },
+        "MedusaDroneDrift": {
+            "path": "assets/Sprites/Robots/MedusaDrone/sheets/jelly_drift.png",
+            "frame_width": 96,
+            "frame_height": 96,
             "columns": 8,
             "rows": 8
         }

@@ -55,6 +55,18 @@ void MapScene::init()
             personalityFrames.push_back(std::move(effect));
         }
         Entities::GetInstance().SetRobotPersonalityEffect(std::move(personalityFrames));
+        std::vector<std::shared_ptr<Sprite>> teleportFrames;
+        for (int frame = 1; frame <= 7; ++frame)
+        {
+            auto effect = SpriteManager::getInstance().getSprite(std::format("robot-teleport-{}", frame));
+            if (!effect)
+            {
+                throw std::runtime_error("Robot teleport animation is missing");
+            }
+            Renderer::getInstance().configureTexture(effect->getTexture().get());
+            teleportFrames.push_back(std::move(effect));
+        }
+        Entities::GetInstance().SetRobotTeleportEffect(std::move(teleportFrames));
         auto sprite = SpriteManager::getInstance().getSprite("player");
         if (!sprite)
         {

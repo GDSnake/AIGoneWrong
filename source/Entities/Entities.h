@@ -104,6 +104,7 @@ struct Entities
   RobotPersonality GetRobotPersonality(std::size_t index) const;
   void SetRobotPersonalityInterval(float minimum, float maximum);
   void SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> frames);
+  void SetRobotTeleportEffect(std::vector<std::shared_ptr<Sprite>> frames);
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
@@ -127,9 +128,11 @@ private:
   struct RobotRuntimeState
   {
     enum class Phase { Routine, Changing, ReturningHome };
+    enum class TeleportPhase { None, Disappearing, Hidden, Appearing };
     RobotPersonality personality = RobotPersonality::FriendlyStopped;
     RobotPersonality pendingPersonality = RobotPersonality::FriendlyStopped;
     Phase phase = Phase::Routine;
+    TeleportPhase teleportPhase = TeleportPhase::None;
     SightDirection axisDirection = SightDirection::Down;
     SightDirection patrolDirection = SightDirection::Down;
     float elapsed = 0.0f;
@@ -140,6 +143,10 @@ private:
     float blockedTime = 0.0f;
     float chaseMemory = 0.0f;
     float repathTime = 0.0f;
+    float rotationAngle = 0.0f;
+    float rotationProgress = 0.0f;
+    float teleportTime = 0.0f;
+    SDL_FPoint teleportOrigin{};
     SDL_FPoint home{};
     SDL_FPoint patrolOrigin{};
     SDL_FPoint patrolEnd{};
@@ -171,6 +178,10 @@ private:
     void BeginRobotPersonalityChange(std::size_t index, RobotPersonality personality);
     void UpdateRobotReturnHome(std::size_t index, float deltaTime);
     void UpdateChangeAxisAggressive(std::size_t index, float deltaTime);
+    void UpdateFriendlyRotating(std::size_t index, float deltaTime);
+    void UpdateHostileTeleporting(std::size_t index, float deltaTime);
+    void UpdateRobotTeleport(std::size_t index, float deltaTime);
+    bool CanRobotTeleportTo(std::size_t index, const SDL_FPoint& position) const;
     bool CheckPlayerCapture() const;
     void UpdateFriendlyMoving(std::size_t index, float deltaTime);
     void UpdateFriendlyStopped(std::size_t index, float deltaTime);
@@ -211,6 +222,7 @@ private:
     std::vector<VisionState> _visionStates;
     std::vector<RobotRuntimeState> _robotStates;
     std::vector<std::shared_ptr<Sprite>> _personalityEffectFrames;
+    std::vector<std::shared_ptr<Sprite>> _teleportEffectFrames;
     std::vector<DoorVisualChange> _doorVisualChanges;
     std::map<std::string, std::size_t> _nameEntities;
 

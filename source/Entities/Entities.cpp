@@ -417,6 +417,7 @@ void Entities::ClearEntities()
 	_visionStates.assign(PlayerIndex + 1, VisionState::Unaware);
 	_robotStates.assign(PlayerIndex + 1, {});
 	_personalityEffectFrames.clear();
+	_teleportEffectFrames.clear();
 	_personalityIntervalOverride = {};
 	_nameEntities.clear();
 }
@@ -841,12 +842,16 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 	};
 	renderer.drawTextureRotated(_spriteEntities[index]->getTexture().get(), destination, &source,
 		0.0, _facingLeft[index] ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
-	if (profile && _robotStates[index].phase == RobotRuntimeState::Phase::Changing && !_personalityEffectFrames.empty())
+	const auto& state = _robotStates[index];
+	const bool teleporting = state.teleportPhase == RobotRuntimeState::TeleportPhase::Disappearing ||
+		state.teleportPhase == RobotRuntimeState::TeleportPhase::Appearing;
+	const auto& effectFrames = teleporting ? _teleportEffectFrames : _personalityEffectFrames;
+	if (profile && (state.phase == RobotRuntimeState::Phase::Changing || teleporting) && !effectFrames.empty())
 	{
-		const auto& state = _robotStates[index];
-		const auto frame = std::min(_personalityEffectFrames.size() - 1,
-			static_cast<std::size_t>(state.transitionTime / profile->behavior.transitionFrameSeconds));
-		const auto& effect = _personalityEffectFrames[frame];
+		const float elapsed = teleporting ? state.teleportTime : state.transitionTime;
+		const float frameSeconds = teleporting ? profile->behavior.teleportFrameSeconds : profile->behavior.transitionFrameSeconds;
+		const auto frame = std::min(effectFrames.size() - 1, static_cast<std::size_t>(elapsed / frameSeconds));
+		const auto& effect = effectFrames[frame];
 		const auto& effectSource = effect->getSourceRect(0);
 		const float size = std::max(source.w, source.h) * spriteScale * scale;
 		renderer.drawTexture(effect->getTexture().get(),
@@ -887,12 +892,18 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 void Entities::RenderVision(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const
 {
 	const RobotProfile& profile = Config::getInstance().getRobotProfile(_robotTypes[index]);
+	const auto& state = _robotStates[index];
+	if (state.teleportPhase != RobotRuntimeState::TeleportPhase::None)
+	{
+		return;
+	}
 	const SDL_FPoint origin{ _xEntities[index], _yEntities[index] - _colliderSizes[index].y * 0.5f };
 	static constexpr std::array<float, 4> angles{
 		-std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float> * 0.5f, std::numbers::pi_v<float>, 0.0f
 	};
 	const float halfAngle = profile.visionAngleDegrees * std::numbers::pi_v<float> / 360.0f;
-	const float facing = angles[static_cast<std::size_t>(_sightDirections[index])];
+	const float facing = RobotPersonalities[static_cast<std::size_t>(state.personality)].rotates ?
+		state.rotationAngle : angles[static_cast<std::size_t>(_sightDirections[index])];
 	constexpr std::size_t segments = 32;
 	std::array<SDL_FPoint, segments + 2> points{};
 	points[0] = { offsetX + origin.x * scale, offsetY + origin.y * scale };
@@ -905,7 +916,6 @@ void Entities::RenderVision(std::size_t index, const Renderer& renderer, float s
 		points[segment + 1] = { offsetX + (origin.x + (target.x - origin.x) * fraction) * scale,
 			offsetY + (origin.y + (target.y - origin.y) * fraction) * scale };
 	}
-	const auto& state = _robotStates[index];
 	const auto personality = static_cast<std::size_t>(state.personality);
 	const bool friendly = RobotPersonalities[personality].friendly;
 	SDL_Color color = friendly ? SDL_Color{ 245, 110, 190, 75 } : SDL_Color{ 50, 210, 100, 70 };

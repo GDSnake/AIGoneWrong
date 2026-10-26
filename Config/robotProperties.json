@@ -19,7 +19,7 @@
             "transitionFrameSeconds": 0.1,
             "transitionBlinkSeconds": 0.1,
             "movementSpeed": 32.0,
-            "chaseSpeed": 64.0,
+            "chaseSpeed": 76.8,
             "chaseRepathSeconds": 0.5,
             "chaseMemorySeconds": 4.0,
             "chaseStopDistance": 12.0,
@@ -53,7 +53,7 @@
             "transitionFrameSeconds": 0.1,
             "transitionBlinkSeconds": 0.1,
             "movementSpeed": 32.0,
-            "chaseSpeed": 64.0,
+            "chaseSpeed": 76.8,
             "chaseRepathSeconds": 0.5,
             "chaseMemorySeconds": 4.0,
             "chaseStopDistance": 12.0,
@@ -64,6 +64,44 @@
                 { "name": "friendly-moving", "weight": 4.0 },
                 { "name": "friendly-stopped", "weight": 4.0 },
                 { "name": "change-axis-aggressive", "weight": 1.0 }
+            ]
+        }
+    },
+    "MedusaDrone": {
+        "spriteName": "MedusaDrone",
+        "movingSpriteName": "MedusaDroneDrift",
+        "spriteScale": 0.5,
+        "visionAngleDegrees": 70.0,
+        "visionRadius": 100.0,
+        "edgeFraction": 0.8,
+        "colliderWidth": 28.0,
+        "colliderHeight": 16.0,
+        "pivotX": 48.0,
+        "pivotY": 79.0,
+        "behavior": {
+            "initialPersonality": "friendly-rotating",
+            "switchMinSeconds": 2.0,
+            "switchMaxSeconds": 4.0,
+            "hostileMinSeconds": 3.0,
+            "hostileMaxSeconds": 5.0,
+            "transitionFrameSeconds": 0.1,
+            "transitionBlinkSeconds": 0.1,
+            "movementSpeed": 32.0,
+            "chaseSpeed": 76.8,
+            "chaseRepathSeconds": 0.5,
+            "chaseMemorySeconds": 4.0,
+            "chaseStopDistance": 12.0,
+            "chaseDurationMultiplier": 1.5,
+            "rotationSpeedDegrees": 180.0,
+            "teleportRadius": 100.0,
+            "teleportHiddenSeconds": 0.5,
+            "teleportFrameSeconds": 0.1,
+            "teleportAttempts": 64,
+            "patrolMinTiles": 2,
+            "patrolMaxTiles": 4,
+            "personalities": [
+                { "name": "friendly-rotating", "weight": 4.0 },
+                { "name": "hostile-teleporting", "weight": 1.0 }
             ]
         }
     }

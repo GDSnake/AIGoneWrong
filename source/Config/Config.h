@@ -361,6 +361,11 @@ private:
         behavior.chaseMemorySeconds = data.value("chaseMemorySeconds", behavior.chaseMemorySeconds);
         behavior.chaseStopDistance = data.value("chaseStopDistance", behavior.chaseStopDistance);
         behavior.chaseDurationMultiplier = data.value("chaseDurationMultiplier", behavior.chaseDurationMultiplier);
+        behavior.rotationSpeedDegrees = data.value("rotationSpeedDegrees", behavior.rotationSpeedDegrees);
+        behavior.teleportRadius = data.value("teleportRadius", behavior.teleportRadius);
+        behavior.teleportHiddenSeconds = data.value("teleportHiddenSeconds", behavior.teleportHiddenSeconds);
+        behavior.teleportFrameSeconds = data.value("teleportFrameSeconds", behavior.teleportFrameSeconds);
+        behavior.teleportAttempts = data.value("teleportAttempts", behavior.teleportAttempts);
         behavior.patrolMinTiles = data.value("patrolMinTiles", behavior.patrolMinTiles);
         behavior.patrolMaxTiles = data.value("patrolMaxTiles", behavior.patrolMaxTiles);
         if (!std::isfinite(behavior.switchMinSeconds) || behavior.switchMinSeconds <= 0.0f ||
@@ -386,6 +391,13 @@ private:
         if (!std::isfinite(behavior.chaseDurationMultiplier) || behavior.chaseDurationMultiplier < 1.0f)
         {
             throw std::runtime_error("Config/robotProperties.json: chase duration multiplier must be finite and at least one");
+        }
+        const std::array rotationValues{ behavior.rotationSpeedDegrees, behavior.teleportRadius,
+            behavior.teleportHiddenSeconds, behavior.teleportFrameSeconds };
+        if (std::any_of(rotationValues.begin(), rotationValues.end(), [](float value) { return !std::isfinite(value) || value <= 0.0f; }) ||
+            behavior.teleportAttempts < 1 || behavior.teleportAttempts > 1024)
+        {
+            throw std::runtime_error("Config/robotProperties.json: rotation/teleport values must be positive and finite; teleportAttempts must be in [1, 1024]");
         }
         const auto& choices = data.at("personalities");
         if (!choices.is_array() || choices.empty())
@@ -431,7 +443,7 @@ private:
             throw std::runtime_error("The root of Config/robotProperties.json must be an object");
         }
 
-        constexpr std::array robotNames{ "ScoutBot", "TrooperBot" };
+        constexpr std::array robotNames{ "ScoutBot", "TrooperBot", "MedusaDrone" };
         static_assert(robotNames.size() + 1 == static_cast<std::size_t>(RobotType::Count));
         for (std::size_t index = 0; index < robotNames.size(); ++index)
         {

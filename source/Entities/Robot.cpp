@@ -48,6 +48,7 @@ bool Entities::CheckPlayerCapture() const
     for (std::size_t index = 1; index < _robotTypes.size(); ++index)
     {
         if (_robotTypes[index] == RobotType::None || _robotStates[index].phase != RobotRuntimeState::Phase::Routine ||
+            _robotStates[index].teleportPhase != RobotRuntimeState::TeleportPhase::None ||
             RobotPersonalities[static_cast<std::size_t>(_robotStates[index].personality)].friendly)
         {
             continue;
@@ -74,6 +75,16 @@ RobotPersonality Entities::GetRobotPersonality(std::size_t index) const
 void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personality)
 {
     auto& state = _robotStates[index];
+    if (state.teleportPhase != RobotRuntimeState::TeleportPhase::None)
+    {
+        _visibilityEntities[index] = true;
+        b2Body_Enable(_bodyIds[index]);
+    }
+    state.teleportPhase = RobotRuntimeState::TeleportPhase::None;
+    state.teleportTime = 0.0f;
+    state.rotationProgress = 0.0f;
+    const auto direction = Directions[static_cast<std::size_t>(_sightDirections[index])];
+    state.rotationAngle = std::atan2(direction.y, direction.x);
     state.personality = personality;
     state.pendingPersonality = personality;
     state.initialized = true;
@@ -90,7 +101,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     const bool friendly = RobotPersonalities[static_cast<std::size_t>(personality)].friendly;
     const float homeX = state.home.x - _xEntities[index];
     const float homeY = state.home.y - _yEntities[index];
-    state.phase = friendly && homeX * homeX + homeY * homeY > 0.0625f ?
+    state.phase = friendly && personality != RobotPersonality::FriendlyRotating && homeX * homeX + homeY * homeY > 0.0625f ?
         RobotRuntimeState::Phase::ReturningHome : RobotRuntimeState::Phase::Routine;
     if (friendly)
     {
@@ -107,8 +118,8 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.returning = false;
     state.switchDelay = state.phase == RobotRuntimeState::Phase::Routine ? NextRobotPersonalityDelay(index) : 0.0f;
     SetVelocity(index, 0.0f, 0.0f);
-    b2Body_SetType(_bodyIds[index], personality == RobotPersonality::FriendlyStopped &&
-        state.phase == RobotRuntimeState::Phase::Routine ? b2_staticBody : b2_kinematicBody);
+    const bool stationary = personality == RobotPersonality::FriendlyStopped || personality == RobotPersonality::FriendlyRotating;
+    b2Body_SetType(_bodyIds[index], stationary && state.phase == RobotRuntimeState::Phase::Routine ? b2_staticBody : b2_kinematicBody);
 }
 
 float Entities::NextRobotPersonalityDelay(std::size_t index)
@@ -147,6 +158,15 @@ void Entities::SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> fr
         throw std::invalid_argument("Robot personality animation needs valid frames");
     }
     _personalityEffectFrames = std::move(frames);
+}
+
+void Entities::SetRobotTeleportEffect(std::vector<std::shared_ptr<Sprite>> frames)
+{
+    if (frames.empty() || std::any_of(frames.begin(), frames.end(), [](const auto& frame) { return !frame; }))
+    {
+        throw std::invalid_argument("Robot teleport animation needs valid frames");
+    }
+    _teleportEffectFrames = std::move(frames);
 }
 
 void Entities::BeginRobotPersonalityChange(std::size_t index, RobotPersonality personality)
@@ -188,6 +208,15 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
     {
         state.elapsed += deltaTime;
     }
+    if (state.teleportPhase != RobotRuntimeState::TeleportPhase::None)
+    {
+        if (personalityChangesEnabled)
+        {
+            UpdateRobotTeleport(index, deltaTime);
+        }
+        UpdateRobotAnimation(index);
+        return;
+    }
     const float switchDelay = state.switchDelay * (state.hasChasedPlayer ? behavior.chaseDurationMultiplier : 1.0f);
     if (personalityChangesEnabled && state.phase == RobotRuntimeState::Phase::Routine && state.elapsed >= switchDelay)
     {
@@ -213,11 +242,13 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
         state.switchDelay = NextRobotPersonalityDelay(index);
     }
     using PersonalityUpdate = void (Entities::*)(std::size_t, float);
-    static constexpr std::array<PersonalityUpdate, 4> updates{
+    static constexpr std::array<PersonalityUpdate, 6> updates{
         &Entities::UpdateFriendlyMoving,
         &Entities::UpdateFriendlyStopped,
         &Entities::UpdateHostile,
-        &Entities::UpdateChangeAxisAggressive
+        &Entities::UpdateChangeAxisAggressive,
+        &Entities::UpdateFriendlyRotating,
+        &Entities::UpdateHostileTeleporting
     };
     static_assert(updates.size() == static_cast<std::size_t>(RobotPersonality::Count));
     if (state.phase == RobotRuntimeState::Phase::ReturningHome)
@@ -349,6 +380,133 @@ void Entities::UpdateChangeAxisAggressive(std::size_t index, float deltaTime)
     }
 }
 
+void Entities::UpdateFriendlyRotating(std::size_t index, float deltaTime)
+{
+    auto& state = _robotStates[index];
+    const float turn = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.rotationSpeedDegrees *
+        std::numbers::pi_v<float> / 180.0f * deltaTime;
+    state.rotationAngle = std::fmod(state.rotationAngle + turn + 2.0f * std::numbers::pi_v<float>, 2.0f * std::numbers::pi_v<float>);
+    state.rotationProgress += turn;
+    const float directionX = std::cos(state.rotationAngle);
+    const float directionY = std::sin(state.rotationAngle);
+    _sightDirections[index] = std::abs(directionX) > std::abs(directionY) ?
+        (directionX < 0.0f ? SightDirection::Left : SightDirection::Right) :
+        (directionY < 0.0f ? SightDirection::Up : SightDirection::Down);
+}
+
+void Entities::UpdateHostileTeleporting(std::size_t index, float deltaTime)
+{
+    auto& state = _robotStates[index];
+    if (state.chaseMemory <= 0.0f)
+    {
+        UpdateFriendlyRotating(index, deltaTime);
+    }
+    UpdateHostile(index, deltaTime);
+    if (state.chaseMemory > 0.0f)
+    {
+        state.rotationProgress = 0.0f;
+        return;
+    }
+    if (state.rotationProgress >= 2.0f * std::numbers::pi_v<float>)
+    {
+        state.teleportPhase = RobotRuntimeState::TeleportPhase::Disappearing;
+        state.teleportTime = 0.0f;
+        state.teleportOrigin = { _xEntities[index], _yEntities[index] };
+    }
+}
+
+bool Entities::CanRobotTeleportTo(std::size_t index, const SDL_FPoint& position) const
+{
+    const float halfWidth = _colliderSizes[index].x * 0.5f + 1.0f;
+    const float height = _colliderSizes[index].y + 1.0f;
+    if (position.x - halfWidth < _mapBounds.x || position.x + halfWidth > _mapBounds.x + _mapBounds.w ||
+        position.y - height < _mapBounds.y || position.y + 1.0f > _mapBounds.y + _mapBounds.h)
+    {
+        return false;
+    }
+    b2ShapeProxy proxy{};
+    proxy.count = 4;
+    proxy.points[0] = { (position.x - halfWidth) / PixelsPerMeter, (position.y - height) / PixelsPerMeter };
+    proxy.points[1] = { (position.x + halfWidth) / PixelsPerMeter, (position.y - height) / PixelsPerMeter };
+    proxy.points[2] = { (position.x + halfWidth) / PixelsPerMeter, (position.y + 1.0f) / PixelsPerMeter };
+    proxy.points[3] = { (position.x - halfWidth) / PixelsPerMeter, (position.y + 1.0f) / PixelsPerMeter };
+    auto filter = b2DefaultQueryFilter();
+    filter.maskBits = 3u;
+    struct OccupancyContext
+    {
+        b2BodyId ignoredBody;
+        bool blocked = false;
+    };
+    OccupancyContext context{ _bodyIds[index] };
+    b2World_OverlapShape(_worldId, &proxy, filter, [](b2ShapeId shape, void* userData)
+    {
+        auto& occupancy = *static_cast<OccupancyContext*>(userData);
+        if (B2_ID_EQUALS(b2Shape_GetBody(shape), occupancy.ignoredBody))
+        {
+            return true;
+        }
+        occupancy.blocked = true;
+        return false;
+    }, &context);
+    return !context.blocked;
+}
+
+void Entities::UpdateRobotTeleport(std::size_t index, float deltaTime)
+{
+    auto& state = _robotStates[index];
+    const auto& behavior = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior;
+    state.teleportTime += deltaTime;
+    const float effectDuration = std::max<std::size_t>(1, _teleportEffectFrames.size()) * behavior.teleportFrameSeconds;
+    if (state.teleportPhase == RobotRuntimeState::TeleportPhase::Disappearing && state.teleportTime >= effectDuration)
+    {
+        state.teleportPhase = RobotRuntimeState::TeleportPhase::Hidden;
+        state.teleportTime = 0.0f;
+        _visibilityEntities[index] = false;
+        b2Body_Disable(_bodyIds[index]);
+    }
+    else if (state.teleportPhase == RobotRuntimeState::TeleportPhase::Hidden && state.teleportTime >= behavior.teleportHiddenSeconds)
+    {
+        SDL_FPoint destination = state.teleportOrigin;
+        bool found = false;
+        for (int attempt = 0; attempt < behavior.teleportAttempts; ++attempt)
+        {
+            const float angle = std::uniform_real_distribution<float>(0.0f, 2.0f * std::numbers::pi_v<float>)(_robotRandom);
+            const float radius = std::sqrt(std::uniform_real_distribution<float>(0.0f, 1.0f)(_robotRandom)) * behavior.teleportRadius;
+            const SDL_FPoint candidate{ state.teleportOrigin.x + std::cos(angle) * radius,
+                state.teleportOrigin.y + std::sin(angle) * radius };
+            if (CanRobotTeleportTo(index, candidate))
+            {
+                destination = candidate;
+                found = true;
+                break;
+            }
+        }
+        if (!found && !CanRobotTeleportTo(index, destination))
+        {
+            state.teleportTime = 0.0f;
+            return;
+        }
+        b2Body_SetTransform(_bodyIds[index], { destination.x / PixelsPerMeter,
+            (destination.y - _colliderSizes[index].y * 0.5f) / PixelsPerMeter }, b2MakeRot(0.0f));
+        _xEntities[index] = destination.x;
+        _yEntities[index] = destination.y;
+        state.previousPosition = destination;
+        state.path.clear();
+        state.nextWaypoint = 0;
+        state.repathTime = 0.0f;
+        _visibilityEntities[index] = true;
+        b2Body_Enable(_bodyIds[index]);
+        state.teleportPhase = RobotRuntimeState::TeleportPhase::Appearing;
+        state.teleportTime = 0.0f;
+    }
+    else if (state.teleportPhase == RobotRuntimeState::TeleportPhase::Appearing && state.teleportTime >= effectDuration)
+    {
+        state.teleportPhase = RobotRuntimeState::TeleportPhase::None;
+        state.teleportTime = 0.0f;
+        state.rotationProgress = 0.0f;
+    }
+}
+
 void Entities::UpdateRobotReturnHome(std::size_t index, float deltaTime)
 {
     auto& state = _robotStates[index];
@@ -474,6 +632,7 @@ void Entities::MoveRobotTowards(std::size_t index, const SDL_FPoint& target, flo
         speed = std::max(0.0f, step * clearance - 0.1f) / deltaTime;
     }
     SetVelocity(index, distanceX * speed / distance, distanceY * speed / distance);
+    _robotStates[index].rotationAngle = std::atan2(distanceY, distanceX);
     _sightDirections[index] = std::abs(distanceX) > std::abs(distanceY) ?
         (distanceX < 0.0f ? SightDirection::Left : SightDirection::Right) :
         (distanceY < 0.0f ? SightDirection::Up : SightDirection::Down);
@@ -484,7 +643,11 @@ void Entities::UpdateRobotAnimation(std::size_t index)
     const auto& state = _robotStates[index];
     const bool moving = _velocityXEntities[index] * _velocityXEntities[index] + _velocityYEntities[index] * _velocityYEntities[index] > 1.0f;
     const auto& sprite = moving ? state.movingSprite : state.idleSprite;
-    const std::size_t firstFrame = RobotIdleRows[static_cast<std::size_t>(_sightDirections[index])] * 8;
+    const bool rotates = RobotPersonalities[static_cast<std::size_t>(state.personality)].rotates;
+    const auto octant = static_cast<std::size_t>(std::floor((state.rotationAngle + 2.0f * std::numbers::pi_v<float> +
+        std::numbers::pi_v<float> / 8.0f) / (std::numbers::pi_v<float> / 4.0f))) % 8;
+    const std::size_t row = rotates ? (octant + 6) % 8 : RobotIdleRows[static_cast<std::size_t>(_sightDirections[index])];
+    const std::size_t firstFrame = row * 8;
     if (_spriteEntities[index] != sprite || _animations[index].idleFirstFrame != firstFrame)
     {
         _spriteEntities[index] = sprite;
@@ -531,7 +694,10 @@ void Entities::UpdateRobotVision(std::size_t index, bool trackingPlayer)
         return;
     }
     const float distance = std::sqrt(distanceSquared);
-    const SDL_FPoint forward = Directions[static_cast<std::size_t>(_sightDirections[index])];
+    const auto& state = _robotStates[index];
+    const bool rotates = RobotPersonalities[static_cast<std::size_t>(state.personality)].rotates;
+    const SDL_FPoint forward = rotates ? SDL_FPoint{ std::cos(state.rotationAngle), std::sin(state.rotationAngle) } :
+        Directions[static_cast<std::size_t>(_sightDirections[index])];
     const float alignment = (distanceX * forward.x + distanceY * forward.y) / distance;
     const float halfAngle = profile.visionAngleDegrees * std::numbers::pi_v<float> / 360.0f;
     if ((!trackingPlayer && alignment < std::cos(halfAngle)) || SightFraction(origin, target) < 0.999f)
