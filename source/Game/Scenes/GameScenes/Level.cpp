@@ -61,7 +61,13 @@ void Level::update(float deltaTime)
         if (_dialogDelay >= 1.0f)
         {
             _introDialogShown = true;
-            showDialog({ { "#generate# Ivalez", _pizzaEaten ? "test text pizza" : "test text no pizza" } });
+            const std::string characterName = _pizzaEaten ? "Anthony Ivalez" : "#generate# Ivalez";
+            showDialog({
+                { characterName, _pizzaEaten
+                    ? "That pizza tasted good...Oh I've remember my name, well nevermind..."
+                    : "I'm hungry...I should have ate that pizza... I still don't remember fully my name" },
+                { characterName, "Something odd looks like it's happening with the robots.\nThey are outside of their usual place." },
+                { characterName, "Did something went wrong with their AI?" } });
         }
     }
     MapScene::update(deltaTime);

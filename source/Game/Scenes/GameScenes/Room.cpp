@@ -39,10 +39,10 @@ void Room::update(float deltaTime)
             _testDialogShown = true;
             Entities::GetInstance().ClearPlayerSpeech();
             showDialog({
-                { "", "Ummm... ahhh...\nI feel sleepy today" },
-                { "", "That was such an odd dream...\nAI taking control of things and making me..." },
-                { "", "...forget my name...oh boy...\nI don't remember..." },
-                { "", "Odd thing...well...just grab yesterday's\nPizza and go to work..." }
+                { "#generate_name#", "Ummm... ahhh...\nI feel sleepy today" },
+                { "#generate_name#", "That was such an odd dream...\nAI taking control of things and making me..." },
+                { "#generate_name#", "...forget my name...oh boy...\nI don't remember..." },
+                { "#generate_name#", "Odd thing...well...just grab yesterday's\nPizza and go to work..." }
             });
         }
     }
