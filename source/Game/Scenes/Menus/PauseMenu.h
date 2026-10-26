@@ -12,6 +12,8 @@ enum class PauseAction
 #ifdef DEBUG
     DebugLevel1,
     DebugLevel2,
+    DebugLevel3,
+    DebugOffice,
     DebugRoom,
 #endif
 };

@@ -17,6 +17,7 @@
 
 #ifdef DEBUG
 #include "Level.h"
+#include "Office.h"
 #include "Room.h"
 #endif
 
@@ -290,6 +291,12 @@ void MapScene::update(float deltaTime)
                     break;
                 case PauseAction::DebugLevel2:
                     transitionTo(std::make_unique<Level>(2));
+                    break;
+                case PauseAction::DebugLevel3:
+                    transitionTo(std::make_unique<Level>(3));
+                    break;
+                case PauseAction::DebugOffice:
+                    transitionTo(std::make_unique<Office>());
                     break;
                 case PauseAction::DebugRoom:
                     transitionTo(std::make_unique<Room>());

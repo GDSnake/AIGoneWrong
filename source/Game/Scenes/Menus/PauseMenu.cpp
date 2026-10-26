@@ -38,6 +38,13 @@ void PauseMenu::handleEvents(const SDL_Event& event)
                 case SDL_SCANCODE_KP_2:
                     _action = PauseAction::DebugLevel2;
                     return;
+                case SDL_SCANCODE_3:
+                case SDL_SCANCODE_KP_3:
+                    _action = PauseAction::DebugLevel3;
+                    return;
+                case SDL_SCANCODE_O:
+                    _action = PauseAction::DebugOffice;
+                    return;
                 case SDL_SCANCODE_R:
                     _action = PauseAction::DebugRoom;
                     return;
