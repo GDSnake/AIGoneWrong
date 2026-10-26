@@ -22,9 +22,9 @@ void Credits::cleanup()
 
 void Credits::setup()
 {
-    _details = { "h-AI-lucinations", "Made by Goncalo Delgado, with help of AI", "Using GDFramework wit SDL3", "Physics: Box2D", "Navigation: Vienna Game AI", "Maps: Tiled",
+    _details = { "h-AI-lucinations", "Made by Goncalo Delgado, with help of AI", "Using GDFramework with SDL3", "Physics: Box2D", "Navigation: Vienna Game AI by hlavacs at GitHub", "Maps: Tiled",
         "JSON: nlohmann/json", "XML: tinyxml2", "Geometry: Mapbox Earcut",
-        "", "Audio", "\"vgm-atmospheric-deepspacefrigate\" by n91music on Itch.io",
+        "", "Audio", "Audacity", "vgm-atmospheric-deepspacefrigate\" by n91music on Itch.io",
         "Samples \"Queer\" by Garbage.",
         "\"Dead Cities\" by Future Sound of London.", "\"Infiltration\" by Norihiko Hibino.",
         "From Metal Gear Solid 2: Sons of Liberty.", "\"UNATCO\" by Michiel van den Bos on Deus Ex.",
@@ -41,7 +41,9 @@ void Credits::setup()
         "Keyboard icons by justfredrik at Itch.io",
         "Energy sprites by ansimuz at Itch.io",
         "Textbox sprites by stationsupply at Itch.io",
-        "NotJamToolkit19 font by not-jam at Itch.io"};
+        "NotJamToolkit19 font by not-jam at Itch.io",
+        "Main character sprite by bdragon1727 at Itch.io"
+    };
     _items = { { "Back" } };
     _detailsScrollable = true;
 }
