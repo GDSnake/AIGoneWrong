@@ -115,6 +115,11 @@ void MenuScene::handleEvents(const SDL_Event& event)
         return;
     }
     _input.handleEvent(event);
+    if (_detailsScrollable && event.type == SDL_EVENT_MOUSE_WHEEL)
+    {
+        scrollDetails(-event.wheel.y * 42.0f);
+        return;
+    }
     if (isTransitioning())
     {
         return;
@@ -147,6 +152,17 @@ void MenuScene::handleInput()
     {
         back();
         return;
+    }
+    if (_detailsScrollable)
+    {
+        if (_input.isKeyPressed(SDL_SCANCODE_PAGEUP))
+        {
+            scrollDetails(-180.0f);
+        }
+        else if (_input.isKeyPressed(SDL_SCANCODE_PAGEDOWN))
+        {
+            scrollDetails(180.0f);
+        }
     }
     const bool previous = _input.isKeyPressed(SDL_SCANCODE_UP) || _input.isKeyPressed(SDL_SCANCODE_W);
     const bool next = _input.isKeyPressed(SDL_SCANCODE_DOWN) || _input.isKeyPressed(SDL_SCANCODE_S) || _input.isKeyPressed(SDL_SCANCODE_TAB);
@@ -295,10 +311,25 @@ void MenuScene::render()
     if (!_details.empty() && !_items.empty())
     {
         const float top = margin + 110.0f;
-        const float step = std::min(34.0f, (itemBounds(0).y - top - 20.0f) / _details.size());
+        const float viewportHeight = std::max(1.0f, itemBounds(0).y - top - 20.0f);
+        const float step = _detailsScrollable ? 42.0f : std::min(34.0f, viewportHeight / _details.size());
+        const float maxScroll = std::max(0.0f, step * _details.size() - viewportHeight);
+        const float scroll = std::clamp(_detailsScroll, 0.0f, maxScroll);
+        SDL_Rect clip{ static_cast<int>(margin), static_cast<int>(top),
+            static_cast<int>(std::max(1.0f, width - margin * 2.0f)), static_cast<int>(viewportHeight) };
+        if (_detailsScrollable)
+        {
+            SDL_SetRenderClipRect(renderer.getRenderer(), &clip);
+        }
         for (std::size_t index = 0; index < _details.size(); ++index)
         {
-            drawLabel(_details[index], { margin, top + step * index, std::max(1.0f, std::min(560.0f, width - margin * 2.0f)), step }, Muted, 0.7f);
+            drawLabel(_details[index], { margin, top + step * index - scroll,
+                std::max(1.0f, std::min(560.0f, width - margin * 2.0f)), step }, Muted,
+                _detailsScrollable ? (index == 0 ? 0.88f : 0.8f) : 0.7f);
+        }
+        if (_detailsScrollable)
+        {
+            SDL_SetRenderClipRect(renderer.getRenderer(), nullptr);
         }
     }
     if (!_status.empty() && !_items.empty())
@@ -314,6 +345,14 @@ void MenuScene::cleanup()
     _scout.reset();
     _trooper.reset();
     _font = nullptr;
+}
+
+void MenuScene::scrollDetails(float amount)
+{
+    if (_detailsScrollable && std::isfinite(amount))
+    {
+        _detailsScroll += amount;
+    }
 }
 
 std::string MenuScene::getName() const { return _sceneName; }

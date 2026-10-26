@@ -109,6 +109,8 @@ struct Entities
   void SetRobotPersonalityEffect(std::vector<std::shared_ptr<Sprite>> frames);
   void SetRobotTeleportEffect(std::vector<std::shared_ptr<Sprite>> frames);
   void SetReactionSprites(std::shared_ptr<Sprite> speech, std::shared_ptr<Sprite> emotes);
+  void SetPlayerSpeech(std::string text, float seconds);
+  void ClearPlayerSpeech();
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
   void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY,
@@ -239,6 +241,7 @@ private:
     std::vector<std::shared_ptr<Sprite>> _teleportEffectFrames;
     std::shared_ptr<Sprite> _speechBubble;
     std::shared_ptr<Sprite> _robotEmotes;
+    std::string _playerSpeechText;
     float _playerSpeechRemaining = 0.0f;
     float _playerSpeechCooldown = 0.0f;
     std::vector<DoorVisualChange> _doorVisualChanges;

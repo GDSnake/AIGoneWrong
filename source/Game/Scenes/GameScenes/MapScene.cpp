@@ -325,18 +325,10 @@ void MapScene::update(float deltaTime)
         }
     }
     Entities::GetInstance().Update(deltaTime, playerInputEnabled);
-    if (playerInputEnabled && Entities::GetInstance().ConsumePlayerCaught())
-    {
-        Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
-        AudioManager::getInstance().stopMusic();
-        _gameOver = std::make_unique<GameOverMenu>();
-        _gameOver->init();
-        *_input = {};
-    }
-    else if (playerInputEnabled)
+    bool reachedEnd = false;
+    if (playerInputEnabled)
     {
         const auto endTrigger = _level.getSpawn("triggerEndLevel");
-        bool reachedEnd = false;
         if (endTrigger)
         {
             const float distanceX = Entities::GetInstance().GetXPositions()[Entities::PlayerIndex] - endTrigger->position.x;
@@ -344,6 +336,18 @@ void MapScene::update(float deltaTime)
             constexpr float triggerRadius = 16.0f;
             reachedEnd = distanceX * distanceX + distanceY * distanceY <= triggerRadius * triggerRadius;
         }
+    }
+    if (playerInputEnabled && !reachedEnd && Entities::GetInstance().ConsumePlayerCaught())
+    {
+        Entities::GetInstance().SetVelocity(Entities::PlayerIndex, 0.0f, 0.0f);
+        AudioManager::getInstance().stopMusic();
+        AudioManager::getInstance().playMusic(AudioTrack::Requiem, false);
+        _gameOver = std::make_unique<GameOverMenu>();
+        _gameOver->init();
+        *_input = {};
+    }
+    else if (playerInputEnabled)
+    {
         if (Entities::GetInstance().ConsumeSceneExitRequest() || reachedEnd)
         {
             auto nextScene = createExitScene();

@@ -76,6 +76,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
 {
     auto& state = _robotStates[index];
     const bool wasHostile = state.initialized && !RobotPersonalities[static_cast<std::size_t>(state.personality)].friendly;
+    const bool wasChasingPlayer = wasHostile && state.hasChasedPlayer;
     if (state.teleportPhase != RobotRuntimeState::TeleportPhase::None)
     {
         _visibilityEntities[index] = true;
@@ -102,7 +103,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.transitionTime = 0.0f;
     state.patrolDistance = 0.0f;
     const bool friendly = RobotPersonalities[static_cast<std::size_t>(personality)].friendly;
-    if (wasHostile && friendly)
+    if (wasChasingPlayer && friendly)
     {
         state.emote = RobotRuntimeState::Emote::Question;
         state.emoteRemaining = Config::getInstance().getConfigData().reactions.emoteSeconds;
@@ -206,11 +207,8 @@ void Entities::UpdateRobotReactions(std::size_t index)
     if (inView && !state.playerInView)
     {
         const auto& reactions = Config::getInstance().getConfigData().reactions;
-        if (state.emote != RobotRuntimeState::Emote::Question || state.emoteRemaining <= 0.0f)
-        {
-            state.emote = RobotRuntimeState::Emote::Exclamation;
-            state.emoteRemaining = reactions.emoteSeconds;
-        }
+        state.emote = RobotRuntimeState::Emote::Exclamation;
+        state.emoteRemaining = reactions.emoteSeconds;
         if (_playerSpeechCooldown <= 0.0f)
         {
             _playerSpeechRemaining = reactions.speechSeconds;

@@ -48,11 +48,14 @@ protected:
 
     std::vector<Item> _items;
     std::vector<std::string> _details;
+    bool _detailsScrollable = false;
+    float _detailsScroll = 0.0f;
     bool _itemsAtBottom = false;
     bool _isOverlay = false;
 
 private:
     std::optional<std::size_t> hitTest(const SDL_FPoint& point) const;
+    void scrollDetails(float amount);
     void drawBackdrop(int width, int height) const;
 
     std::string _title;

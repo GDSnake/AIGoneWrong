@@ -76,7 +76,7 @@ void AudioManager::toggleMusic() const
     }
 }
 
-void AudioManager::playMusic(AudioTrack music) const
+void AudioManager::playMusic(AudioTrack music, bool loop) const
 {
     if (!_track)
     {
@@ -126,7 +126,7 @@ void AudioManager::playMusic(AudioTrack music) const
             std::cerr << "Audio Manager Properties Error: " << SDL_GetError() << '\n';
             return;
         }
-        SDL_SetNumberProperty(properties, MIX_PROP_PLAY_LOOPS_NUMBER, -1);
+        SDL_SetNumberProperty(properties, MIX_PROP_PLAY_LOOPS_NUMBER, loop ? -1 : 0);
         if (!MIX_PlayTrack(_track.get(), properties))
         {
             std::cerr << "Audio Manager Playback Error: " << SDL_GetError() << '\n';

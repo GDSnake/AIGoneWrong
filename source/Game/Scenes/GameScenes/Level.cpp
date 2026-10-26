@@ -46,6 +46,10 @@ void Level::init()
     {
         AudioManager::getInstance().playMusic(AudioTrack::Level2);
     }
+    else if (_index == 3 && !shouldQuit())
+    {
+        AudioManager::getInstance().playMusic(AudioTrack::Level3);
+    }
 }
 
 void Level::update(float deltaTime)
@@ -65,7 +69,7 @@ void Level::update(float deltaTime)
 
 void Level::cleanup()
 {
-    if (_index == 1 || _index == 2)
+    if (_index == 1 || _index == 2 || _index == 3)
     {
         AudioManager::getInstance().stopMusic();
     }

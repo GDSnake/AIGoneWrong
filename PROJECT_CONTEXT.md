@@ -202,8 +202,10 @@ Music is registered under `sound` in the root config and selected through `Audio
 | Room | `QueerSample.flac` |
 | Level 1 | `Dead Cities Cut.flac` |
 | Level 2 | `Infiltration.flac` |
+| Level 3 | `UNATCO.mp3` |
+| Office | `Costa del Sol.mp3` |
 
-Do not assign new music to Level 3 or Office without a request. Preserve supplied licenses and Credits entries, including the Garbage sample, Future Sound of London, and Norihiko Hibino / Metal Gear Solid 2: Sons of Liberty attribution.
+Preserve supplied licenses and Credits entries, including the Garbage sample, Future Sound of London, Norihiko Hibino / Metal Gear Solid 2: Sons of Liberty, Michiel van den Bos / Deus Ex, and Nobuo Uematsu / Final Fantasy VII attribution.
 
 ## Working and Validation Rules
 

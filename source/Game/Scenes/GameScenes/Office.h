@@ -6,6 +6,8 @@ class Office : public MapScene
 {
 public:
     Office();
+    void init() override;
+    void cleanup() override;
 
 protected:
     std::unique_ptr<Scene> createExitScene() const override;

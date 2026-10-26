@@ -18,13 +18,17 @@
         "Level_01": 2.0,
         "Level_02": 2.5,
         "Level_03": 3.0,
-        "Office": 1.0
+        "Office": 3.0
     },
     "sound": {
         "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",
         "room_music": "assets/Audio/Music/QueerSample.flac",
         "level_1_music": "assets/Audio/Music/Dead Cities Cut.flac",
-        "level_2_music": "assets/Audio/Music/Infiltration.flac"
+        "level_2_music": "assets/Audio/Music/Infiltration.flac",
+        "level_3_music": "assets/Audio/Music/UNATCO.mp3",
+        "game_over_music": "assets/Audio/Music/Requiem.mp3",
+        "office_music": "assets/Audio/Music/Costa del Sol.mp3",
+        "credits_music": "assets/Audio/Music/Misty Bog.mp3"
     },
     "fonts": {
         "defaultFont": "assets/Fonts/NotJamToolkit15.ttf"

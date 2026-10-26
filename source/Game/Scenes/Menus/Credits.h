@@ -6,6 +6,8 @@ class Credits : public MenuScene
 {
 public:
     Credits();
+    void init() override;
+    void cleanup() override;
 
 private:
     void setup() override;

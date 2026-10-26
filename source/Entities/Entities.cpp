@@ -421,6 +421,7 @@ void Entities::ClearEntities()
 	_teleportEffectFrames.clear();
 	_speechBubble.reset();
 	_robotEmotes.reset();
+	_playerSpeechText.clear();
 	_playerSpeechRemaining = 0.0f;
 	_playerSpeechCooldown = 0.0f;
 	_personalityIntervalOverride = {};
@@ -844,6 +845,22 @@ void Entities::SetReactionSprites(std::shared_ptr<Sprite> speech, std::shared_pt
 	_robotEmotes = std::move(emotes);
 }
 
+void Entities::SetPlayerSpeech(std::string text, float seconds)
+{
+	if (text.empty() || !std::isfinite(seconds) || seconds <= 0.0f)
+	{
+		throw std::invalid_argument("Player speech needs nonempty text and a positive duration");
+	}
+	_playerSpeechText = std::move(text);
+	_playerSpeechRemaining = seconds;
+}
+
+void Entities::ClearPlayerSpeech()
+{
+	_playerSpeechRemaining = 0.0f;
+	_playerSpeechText.clear();
+}
+
 void Entities::RenderReactions(const Renderer& renderer, const RenderView& view, TTF_Font* font) const
 {
 	int outputWidth = 0, outputHeight = 0;
@@ -892,18 +909,19 @@ void Entities::RenderReactions(const Renderer& renderer, const RenderView& view,
 		const auto first = state.emote == RobotRuntimeState::Emote::Question ? 3u : 0u;
 		const auto frame = first + static_cast<std::size_t>((reactions.emoteSeconds - state.emoteRemaining) / reactions.emoteFrameSeconds) % 3;
 		const auto& source = _robotEmotes->getSourceRect(frame);
-		renderer.drawTexture(_robotEmotes->getTexture().get(), bounds(index, 24.0f, 24.0f, 0.5f), &source);
+		renderer.drawTexture(_robotEmotes->getTexture().get(), bounds(index, 14.4f, 14.4f, 0.5f), &source);
 	}
 	if (_speechBubble && _playerSpeechRemaining > 0.0f && _spriteEntities[PlayerIndex] && _visibilityEntities[PlayerIndex] && onScreen(PlayerIndex))
 	{
-		const auto destination = bounds(PlayerIndex, 72.0f, 36.0f, 0.25f);
+		const auto destination = bounds(PlayerIndex, 36.0f, 18.0f, 0.25f);
 		const auto& source = _speechBubble->getSourceRect(0);
 		renderer.drawTexture(_speechBubble->getTexture().get(), destination, &source);
+		const auto& speechText = _playerSpeechText.empty() ? reactions.playerText : _playerSpeechText;
 		float textWidth = 0.0f, textHeight = 0.0f;
-		if (renderer.measureText(font, reactions.playerText, textWidth, textHeight) && textWidth > 0.0f && textHeight > 0.0f)
+		if (renderer.measureText(font, speechText, textWidth, textHeight) && textWidth > 0.0f && textHeight > 0.0f)
 		{
 			const float textScale = std::min(destination.w * 0.84f / textWidth, destination.h * 0.5f / textHeight);
-			renderer.drawText(font, reactions.playerText,
+			renderer.drawText(font, speechText,
 				{ destination.x + (destination.w - textWidth * textScale) * 0.5f,
 					destination.y + destination.h * 0.08f + (destination.h * 0.5f - textHeight * textScale) * 0.5f },
 				{ 30, 30, 35, 255 }, textScale);

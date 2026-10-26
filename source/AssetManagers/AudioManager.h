@@ -10,6 +10,10 @@ enum class AudioTrack : uint8_t
     Room,
     Level1,
     Level2,
+    Level3,
+    Requiem,
+    Office,
+    MistyBog,
     // ADD as needed for the map
     Total
 };
@@ -26,6 +30,14 @@ static std::string toString(const AudioTrack track)
         return "level_1_music";
     case AudioTrack::Level2:
         return "level_2_music";
+    case AudioTrack::Level3:
+        return "level_3_music";
+    case AudioTrack::Requiem:
+        return "game_over_music";
+    case AudioTrack::Office:
+        return "office_music";
+    case AudioTrack::MistyBog:
+        return "credits_music";
     default:
         return "";
     }
@@ -43,7 +55,7 @@ public:
     void toggleMusic() const;
     bool isMusicPlaying() const noexcept;
 
-    void playMusic(AudioTrack music = AudioTrack::BGM) const;
+    void playMusic(AudioTrack music = AudioTrack::BGM, bool loop = true) const;
     void stopMusic() const;
     void resumeMusic() const;
     void pauseMusic() const;
