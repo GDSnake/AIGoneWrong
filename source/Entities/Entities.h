@@ -19,6 +19,7 @@ class Sprite;
 class InputManager;
 class Renderer;
 struct RenderView;
+struct WorldSprite;
 
 enum class EntityBehavior : std::uint8_t
 {
@@ -108,7 +109,8 @@ struct Entities
   void SetRobotTeleportEffect(std::vector<std::shared_ptr<Sprite>> frames);
   std::span<const ParticleHandle> GetParticles(std::size_t index) const;
   void RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
-  void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const;
+  void RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY,
+      std::span<const WorldSprite> props = {}) const;
 
 #ifdef DEBUG
   void DrawCollisions(const Renderer& renderer, const RenderView& view) const;
@@ -158,6 +160,7 @@ private:
     std::size_t nextWaypoint = 0;
     bool returning = false;
     bool attemptedMovement = false;
+    bool avoidActors = false;
     bool hasChasedPlayer = false;
     bool initialized = false;
     std::shared_ptr<Sprite> idleSprite;
@@ -171,6 +174,7 @@ private:
     void CreateStaticCollider(std::span<const SDL_FPoint> vertices);
     void ValidateEntity(const EntityData& entity) const;
     void ValidateIndex(std::size_t index) const;
+    WorldSprite EntityWorldSprite(std::size_t index) const;
     void UpdatePlayerInput(std::size_t index, const InputManager& input);
     void UpdateDoor(std::size_t index, const InputManager& input);
     static RobotRuntimeState MakeRobotState(const EntityData& entity);

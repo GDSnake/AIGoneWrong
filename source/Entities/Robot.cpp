@@ -91,6 +91,7 @@ void Entities::SetRobotPersonality(std::size_t index, RobotPersonality personali
     state.initialized = true;
     state.blockedTime = 0.0f;
     state.attemptedMovement = false;
+    state.avoidActors = false;
     state.hasChasedPlayer = false;
     state.chaseMemory = 0.0f;
     state.repathTime = 0.0f;
@@ -189,6 +190,16 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
     {
         SetRobotPersonality(index, behavior.initialPersonality);
     }
+    const float traveledX = _xEntities[index] - state.previousPosition.x;
+    const float traveledY = _yEntities[index] - state.previousPosition.y;
+    state.blockedTime = state.attemptedMovement && traveledX * traveledX + traveledY * traveledY < 0.000001f ?
+        state.blockedTime + deltaTime : 0.0f;
+    if (state.blockedTime >= 0.3f && !state.avoidActors)
+    {
+        state.avoidActors = true;
+        state.repathTime = 0.0f;
+    }
+    state.attemptedMovement = false;
     SetVelocity(index, 0.0f, 0.0f);
     _visionStates[index] = VisionState::Unaware;
     if (state.phase == RobotRuntimeState::Phase::Changing)
@@ -260,8 +271,6 @@ void Entities::UpdateRobot(std::size_t index, float deltaTime, bool personalityC
     {
         (this->*updates[static_cast<std::size_t>(state.personality)])(index, deltaTime);
     }
-    state.attemptedMovement = _velocityXEntities[index] * _velocityXEntities[index] +
-        _velocityYEntities[index] * _velocityYEntities[index] > 1.0f;
     state.previousPosition = { _xEntities[index], _yEntities[index] };
     UpdateRobotAnimation(index);
 }
@@ -285,9 +294,12 @@ float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, con
     struct SweepContext
     {
         b2BodyId ignoredBody;
+        b2Vec2 centre;
+        b2Vec2 translation;
         float fraction = 1.0f;
     };
-    SweepContext context{ _bodyIds[index] };
+    SweepContext context{ _bodyIds[index], { origin.x / PixelsPerMeter, (origin.y - height * 0.5f) / PixelsPerMeter },
+        { translation.x / PixelsPerMeter, translation.y / PixelsPerMeter } };
     b2World_CastShape(_worldId, &proxy, { translation.x / PixelsPerMeter, translation.y / PixelsPerMeter }, filter,
         [](b2ShapeId shape, b2Vec2, b2Vec2, float hitFraction, void* userData)
         {
@@ -296,6 +308,16 @@ float Entities::PatrolClearance(std::size_t index, const SDL_FPoint& origin, con
             if (B2_ID_EQUALS(body, sweep.ignoredBody))
             {
                 return -1.0f;
+            }
+            if (hitFraction == 0.0f)
+            {
+                const auto closest = b2Shape_GetClosestPoint(shape, sweep.centre);
+                const float awayX = sweep.centre.x - closest.x;
+                const float awayY = sweep.centre.y - closest.y;
+                if (awayX * sweep.translation.x + awayY * sweep.translation.y > 0.0f)
+                {
+                    return -1.0f;
+                }
             }
             sweep.fraction = std::min(sweep.fraction, hitFraction);
             return sweep.fraction;
@@ -336,13 +358,9 @@ void Entities::UpdateFriendlyMoving(std::size_t index, float deltaTime)
     {
         return;
     }
-    const float traveledX = _xEntities[index] - state.previousPosition.x;
-    const float traveledY = _yEntities[index] - state.previousPosition.y;
-    state.blockedTime = state.attemptedMovement && traveledX * traveledX + traveledY * traveledY < 0.0025f ?
-        state.blockedTime + deltaTime : 0.0f;
-    if (state.blockedTime >= 0.3f && !state.returning)
+    if (state.blockedTime >= 0.3f)
     {
-        state.returning = true;
+        state.returning = !state.returning;
         state.blockedTime = 0.0f;
     }
     SDL_FPoint target = state.returning ? state.patrolOrigin : state.patrolEnd;
@@ -566,7 +584,8 @@ void Entities::UpdateRobotReturnHome(std::size_t index, float deltaTime)
     if (state.repathTime <= 0.0f)
     {
         state.path = Navigation::findPath({ _worldId, _mapBounds, { _tileSize.x * 0.5f, _tileSize.y * 0.5f },
-            _colliderSizes[index], position, state.home });
+            _colliderSizes[index], position, state.home, state.avoidActors ? 3u : 1u,
+            { _bodyIds[index], _bodyIds[PlayerIndex] } });
         state.nextWaypoint = 0;
         state.repathTime = Config::getInstance().getRobotProfile(_robotTypes[index]).behavior.chaseRepathSeconds;
     }
@@ -619,7 +638,8 @@ void Entities::UpdateHostile(std::size_t index, float deltaTime)
     if (state.repathTime <= 0.0f)
     {
         state.path = Navigation::findPath({ _worldId, _mapBounds, { _tileSize.x * 0.5f, _tileSize.y * 0.5f },
-            _colliderSizes[index], position, state.lastSeenPlayer });
+            _colliderSizes[index], position, state.lastSeenPlayer, state.avoidActors ? 3u : 1u,
+            { _bodyIds[index], _bodyIds[PlayerIndex] } });
         state.nextWaypoint = 0;
         state.repathTime = behavior.chaseRepathSeconds;
     }
@@ -656,6 +676,7 @@ void Entities::MoveRobotTowards(std::size_t index, const SDL_FPoint& target, flo
     {
         return;
     }
+    _robotStates[index].attemptedMovement = true;
     speed = std::min(speed, distance / deltaTime);
     const float step = speed * deltaTime;
     const float clearance = PatrolClearance(index, { _xEntities[index], _yEntities[index] },

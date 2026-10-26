@@ -17,6 +17,17 @@ struct RenderView
     float offsetY = 0.0f;
 };
 
+struct WorldSprite
+{
+    SDL_Texture* texture = nullptr;
+    SDL_FRect source{};
+    SDL_FRect destination{};
+    float depth = 0.0f;
+    float opacity = 1.0f;
+    double angle = 0.0;
+    SDL_FlipMode flip = SDL_FLIP_NONE;
+};
+
 class Renderer
 {
 public:
@@ -47,6 +58,8 @@ public:
         float opacity = 1.0f) const;
     void drawTextureRotated(SDL_Texture* texture, const SDL_FRect& destination,
         const SDL_FRect* source, double angle, SDL_FlipMode flip = SDL_FLIP_NONE, float opacity = 1.0f) const;
+    void drawWorldSprite(const WorldSprite& sprite, const RenderView& view,
+        std::span<const WorldSprite> actorsBehind = {}) const;
     void drawLines(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
     void drawTriangleFan(std::span<const SDL_FPoint> points, const SDL_Color& color) const;
     void drawFilledRect(const SDL_FRect& rectangle, const SDL_Color& color) const;

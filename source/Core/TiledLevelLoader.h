@@ -42,7 +42,7 @@ class TiledLevelLoader
 public:
     bool load(const std::filesystem::path& mapPath, const Renderer& renderer);
     void render(const Renderer& renderer, const RenderView& view,
-        const std::function<void(std::size_t, float, float, float)>& renderEntities = {}) const;
+        const std::function<void(std::size_t, float, float, float, std::span<const WorldSprite>)>& renderEntities = {}) const;
     std::optional<TiledSpawnPoint> getSpawn(std::string_view name) const;
     std::span<const TiledSpawnPoint> getSpawns() const noexcept;
     std::span<const TiledDoor> getDoors() const noexcept;
@@ -56,14 +56,9 @@ public:
     void clear();
 
 private:
-    struct Tile
+    struct Tile : WorldSprite
     {
-        SDL_Texture* texture = nullptr;
-        SDL_FRect source{};
-        SDL_FRect destination{};
-        float opacity = 1.0f;
-        double angle = 0.0;
-        SDL_FlipMode flip = SDL_FLIP_NONE;
+        bool depthSorted = false;
     };
 
     std::vector<Renderer::Texture> _textures;

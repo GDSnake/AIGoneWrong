@@ -10,7 +10,8 @@
         "Room": 1.0,
         "Level_01": 2.0,
         "Level_02": 2.5,
-        "Level_03": 3.0
+        "Level_03": 3.0,
+        "Office": 1.0
     },
     "sound": {
         "bgm": "assets/Audio/Music/vgm-atmospheric-deepspacefrigate.mp3",

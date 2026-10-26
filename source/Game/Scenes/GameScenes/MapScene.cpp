@@ -386,9 +386,9 @@ void MapScene::render()
     };
     const RenderView view{ scale, offset(bounds.x, bounds.w, static_cast<float>(outputWidth), focusX),
         offset(bounds.y, bounds.h, static_cast<float>(outputHeight), focusY) };
-    _level.render(renderer, view, [&renderer](std::size_t layer, float scale, float offsetX, float offsetY)
+    _level.render(renderer, view, [&renderer](std::size_t layer, float scale, float offsetX, float offsetY, std::span<const WorldSprite> props)
     {
-        Entities::GetInstance().RenderLayer(layer, renderer, scale, offsetX, offsetY);
+        Entities::GetInstance().RenderLayer(layer, renderer, scale, offsetX, offsetY, props);
     });
 #ifdef DEBUG
     if (_drawCollisions)

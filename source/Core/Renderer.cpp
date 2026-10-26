@@ -2,14 +2,75 @@
 
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_video.h>
+#include <SDL3/SDL_properties.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <memory>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
 #include "Config/Config.h"
+
+namespace
+{
+    constexpr const char* PixelDataProperty = "hAIlucinations.texture_pixels";
+
+    struct TexturePixels
+    {
+        int width = 0;
+        int height = 0;
+        std::vector<Uint8> rgba;
+        Renderer::Texture masked;
+        int maskedWidth = 0;
+        int maskedHeight = 0;
+    };
+
+    SDL_FPoint rotatePoint(SDL_FPoint point, const SDL_FRect& bounds, double angle)
+    {
+        const float centreX = bounds.x + bounds.w * 0.5f;
+        const float centreY = bounds.y + bounds.h * 0.5f;
+        const float radians = static_cast<float>(angle) * std::numbers::pi_v<float> / 180.0f;
+        const float deltaX = point.x - centreX, deltaY = point.y - centreY;
+        return { centreX + std::cos(radians) * deltaX - std::sin(radians) * deltaY,
+            centreY + std::sin(radians) * deltaX + std::cos(radians) * deltaY };
+    }
+
+    SDL_FRect spriteBounds(const WorldSprite& sprite)
+    {
+        const auto& bounds = sprite.destination;
+        if (sprite.angle == 0.0) return bounds;
+        const std::array corners{ SDL_FPoint{ bounds.x, bounds.y }, SDL_FPoint{ bounds.x + bounds.w, bounds.y },
+            SDL_FPoint{ bounds.x + bounds.w, bounds.y + bounds.h }, SDL_FPoint{ bounds.x, bounds.y + bounds.h } };
+        float minX = INFINITY, minY = INFINITY, maxX = -INFINITY, maxY = -INFINITY;
+        for (const auto corner : corners)
+        {
+            const auto point = rotatePoint(corner, bounds, sprite.angle);
+            minX = std::min(minX, point.x);minY = std::min(minY, point.y);
+            maxX = std::max(maxX, point.x);maxY = std::max(maxY, point.y);
+        }
+        return { minX, minY, maxX - minX, maxY - minY };
+    }
+
+    Uint8 spriteAlpha(const WorldSprite& sprite, const TexturePixels& pixels, SDL_FPoint point)
+    {
+        if (sprite.destination.w <= 0.0f || sprite.destination.h <= 0.0f) return 0;
+        if (sprite.angle != 0.0) point = rotatePoint(point, sprite.destination, -sprite.angle);
+        float unitX = (point.x - sprite.destination.x) / sprite.destination.w;
+        float unitY = (point.y - sprite.destination.y) / sprite.destination.h;
+        if (unitX < 0.0f || unitY < 0.0f || unitX >= 1.0f || unitY >= 1.0f) return 0;
+        if (sprite.flip & SDL_FLIP_HORIZONTAL) unitX = 1.0f - unitX;
+        if (sprite.flip & SDL_FLIP_VERTICAL) unitY = 1.0f - unitY;
+        const int sourceX = std::clamp(static_cast<int>(sprite.source.x + unitX * sprite.source.w), 0, pixels.width - 1);
+        const int sourceY = std::clamp(static_cast<int>(sprite.source.y + unitY * sprite.source.h), 0, pixels.height - 1);
+        return static_cast<Uint8>(pixels.rgba[(static_cast<std::size_t>(sourceY) * pixels.width + sourceX) * 4 + 3] * sprite.opacity);
+    }
+}
 
 void Renderer::TextureDeleter::operator()(SDL_Texture* texture) const noexcept
 {
@@ -76,11 +137,28 @@ Renderer::Texture Renderer::loadTexture(const std::filesystem::path& path) const
     {
         throw std::runtime_error("Cannot load a texture before the renderer is initialized");
     }
-    Texture texture(IMG_LoadTexture(_renderer, path.string().c_str()));
+    std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> original(IMG_Load(path.string().c_str()), SDL_DestroySurface);
+    std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> surface(
+        original ? SDL_ConvertSurface(original.get(), SDL_PIXELFORMAT_RGBA32) : nullptr, SDL_DestroySurface);
+    Texture texture(surface ? SDL_CreateTextureFromSurface(_renderer, surface.get()) : nullptr);
     if (!texture)
     {
         throw std::runtime_error("Cannot load texture '" + path.string() + "': " + SDL_GetError());
     }
+    auto pixels = std::make_unique<TexturePixels>();
+    pixels->width = surface->w;pixels->height = surface->h;
+    pixels->rgba.resize(static_cast<std::size_t>(surface->w) * surface->h * 4);
+    for (int row = 0; row < surface->h; ++row)
+    {
+        std::memcpy(pixels->rgba.data() + static_cast<std::size_t>(row) * surface->w * 4,
+            static_cast<const Uint8*>(surface->pixels) + row * surface->pitch, surface->w * 4);
+    }
+    if (!SDL_SetPointerPropertyWithCleanup(SDL_GetTextureProperties(texture.get()), PixelDataProperty, pixels.get(),
+        [](void*, void* value) { delete static_cast<TexturePixels*>(value); }, nullptr))
+    {
+        throw std::runtime_error("Cannot cache texture pixels: " + std::string(SDL_GetError()));
+    }
+    pixels.release();
     configureTexture(texture.get());
     return texture;
 }
@@ -117,6 +195,80 @@ void Renderer::drawTextureRotated(SDL_Texture* texture, const SDL_FRect& destina
         SDL_SetTextureAlphaModFloat(texture, opacity);
         SDL_RenderTextureRotated(_renderer, texture, source, &destination, angle, nullptr, flip);
     }
+}
+
+void Renderer::drawWorldSprite(const WorldSprite& sprite, const RenderView& view,
+    std::span<const WorldSprite> actorsBehind) const
+{
+    if (!_renderer || !sprite.texture || sprite.source.w <= 0.0f || sprite.source.h <= 0.0f)
+    {
+        return;
+    }
+    struct ActorMask
+    {
+        const WorldSprite* sprite;
+        const TexturePixels* pixels;
+    };
+    std::vector<ActorMask> masks;
+    const auto bounds = spriteBounds(sprite);
+    for (const auto& actor : actorsBehind)
+    {
+        const auto actorBounds = spriteBounds(actor);
+        if (!actor.texture || actor.depth >= sprite.depth || !SDL_HasRectIntersectionFloat(&bounds, &actorBounds)) continue;
+        const auto* pixels = static_cast<TexturePixels*>(SDL_GetPointerProperty(
+            SDL_GetTextureProperties(actor.texture), PixelDataProperty, nullptr));
+        if (pixels) masks.push_back({ &actor, pixels });
+    }
+    SDL_Texture* texture = sprite.texture;
+    SDL_FRect source = sprite.source;
+    auto* pixels = static_cast<TexturePixels*>(SDL_GetPointerProperty(
+        SDL_GetTextureProperties(sprite.texture), PixelDataProperty, nullptr));
+    if (pixels && !masks.empty())
+    {
+        const int width = static_cast<int>(std::ceil(source.w));
+        const int height = static_cast<int>(std::ceil(source.h));
+        if (!pixels->masked || pixels->maskedWidth != width || pixels->maskedHeight != height)
+        {
+            pixels->masked.reset(SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height));
+            pixels->maskedWidth = width;pixels->maskedHeight = height;
+            configureTexture(pixels->masked.get());
+        }
+        void* buffer = nullptr;
+        int pitch = 0;
+        if (pixels->masked && SDL_LockTexture(pixels->masked.get(), nullptr, &buffer, &pitch))
+        {
+            for (int row = 0; row < height; ++row)
+            {
+                auto* output = static_cast<Uint8*>(buffer) + row * pitch;
+                for (int column = 0; column < width; ++column)
+                {
+                    const int sourceX = std::clamp(static_cast<int>(source.x) + column, 0, pixels->width - 1);
+                    const int sourceY = std::clamp(static_cast<int>(source.y) + row, 0, pixels->height - 1);
+                    const auto* original = pixels->rgba.data() + (static_cast<std::size_t>(sourceY) * pixels->width + sourceX) * 4;
+                    std::memcpy(output + column * 4, original, 4);
+                    if (original[3] == 0) continue;
+                    float unitX = (column + 0.5f) / width, unitY = (row + 0.5f) / height;
+                    if (sprite.flip & SDL_FLIP_HORIZONTAL) unitX = 1.0f - unitX;
+                    if (sprite.flip & SDL_FLIP_VERTICAL) unitY = 1.0f - unitY;
+                    SDL_FPoint world{ sprite.destination.x + unitX * sprite.destination.w,
+                        sprite.destination.y + unitY * sprite.destination.h };
+                    if (sprite.angle != 0.0) world = rotatePoint(world, sprite.destination, sprite.angle);
+                    Uint8 coverage = 0;
+                    for (const auto& mask : masks)
+                    {
+                        coverage = std::max(coverage, spriteAlpha(*mask.sprite, *mask.pixels, world));
+                    }
+                    output[column * 4 + 3] = static_cast<Uint8>((static_cast<unsigned>(original[3]) * (510 - coverage) + 255) / 510);
+                }
+            }
+            SDL_UnlockTexture(pixels->masked.get());
+            texture = pixels->masked.get();
+            source = { 0, 0, static_cast<float>(width), static_cast<float>(height) };
+        }
+    }
+    const SDL_FRect destination{ view.offsetX + sprite.destination.x * view.scale,
+        view.offsetY + sprite.destination.y * view.scale, sprite.destination.w * view.scale, sprite.destination.h * view.scale };
+    drawTextureRotated(texture, destination, &source, sprite.angle, sprite.flip, sprite.opacity);
 }
 
 void Renderer::drawLines(std::span<const SDL_FPoint> points, const SDL_Color& color) const

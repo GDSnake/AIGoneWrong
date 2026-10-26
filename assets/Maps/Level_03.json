@@ -154,8 +154,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":904.382324385695,
-                 "y":531.713342794583
+                 "x":904.382,
+                 "y":531.713
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -178,8 +178,8 @@
                  "type":"MedusaDrone",
                  "visible":true,
                  "width":0,
-                 "x":428.448110939908,
-                 "y":369.571732122293
+                 "x":428.448,
+                 "y":369.572
                 }, 
                 {
                  "height":0,
@@ -191,8 +191,8 @@
                  "type":"MedusaDrone",
                  "visible":true,
                  "width":0,
-                 "x":715.690708215068,
-                 "y":221.007340929365
+                 "x":715.691,
+                 "y":221.007
                 }, 
                 {
                  "height":0,
@@ -210,13 +210,13 @@
                  "type":"ScoutBot",
                  "visible":true,
                  "width":0,
-                 "x":246.014110777715,
-                 "y":214.873084096991
+                 "x":246.014,
+                 "y":214.873
                 }, 
                 {
                  "height":0,
                  "id":9,
-                 "name":"Scout_01",
+                 "name":"Scout_03",
                  "opacity":1,
                  "point":true,
                  "properties":[
@@ -229,8 +229,8 @@
                  "type":"ScoutBot",
                  "visible":true,
                  "width":0,
-                 "x":288.833022463709,
-                 "y":380.699051171843
+                 "x":288.833,
+                 "y":380.699
                 }, 
                 {
                  "height":0,
@@ -248,8 +248,8 @@
                  "type":"TrooperBot",
                  "visible":true,
                  "width":0,
-                 "x":604.914443273052,
-                 "y":382.25610250588
+                 "x":604.914,
+                 "y":382.256
                 }, 
                 {
                  "height":0,
@@ -267,8 +267,8 @@
                  "type":"TrooperBot",
                  "visible":true,
                  "width":0,
-                 "x":367.464114832536,
-                 "y":542.632389911605
+                 "x":367.464,
+                 "y":542.632
                 }, 
                 {
                  "height":0,
@@ -286,8 +286,8 @@
                  "type":"ScoutBot",
                  "visible":true,
                  "width":0,
-                 "x":553.531749249858,
-                 "y":145.584299732382
+                 "x":553.532,
+                 "y":145.584
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -339,7 +339,7 @@
         }, 
         {
          "firstgid":852,
-         "source":"..\/..\/metadata\/Lab.tsx"
+         "source":"tileset\/Lab.tsx"
         }],
  "tilewidth":32,
  "type":"map",

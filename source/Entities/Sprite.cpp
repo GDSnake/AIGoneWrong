@@ -1,8 +1,5 @@
 #include "Sprite.h"
 
-#include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
-
 #include <cmath>
 #include <format>
 #include <memory>
@@ -28,28 +25,9 @@ Sprite::Sprite(const std::string& filePath, float width, float height,
         throw std::invalid_argument("Sprite dimensions and sheet metadata must be valid");
     }
 
-    std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> surface(
-        IMG_Load(filePath.c_str()), SDL_DestroySurface);
-    if (!surface)
-    {
-        throw std::runtime_error(std::format("Failed to load sprite '{}': {}", filePath, SDL_GetError()));
-    }
-
-    SDL_Renderer* renderer = Renderer::getInstance().getRenderer();
-    if (!renderer)
-    {
-        throw std::runtime_error("Cannot create sprite texture before the renderer is initialized");
-    }
-
-    std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
-        SDL_CreateTextureFromSurface(renderer, surface.get()), SDL_DestroyTexture);
-    if (!texture)
-    {
-        throw std::runtime_error(std::format("Failed to create sprite texture '{}': {}", filePath, SDL_GetError()));
-    }
-
-
-    if (!SDL_GetTextureSize(texture.get(), &width, &height))
+    auto& renderer = Renderer::getInstance();
+    auto texture = renderer.loadTexture(filePath);
+    if (!renderer.getTextureSize(texture.get(), width, height))
     {
         throw std::runtime_error(std::format("Failed to get sprite dimensions '{}': {}", filePath, SDL_GetError()));
     }

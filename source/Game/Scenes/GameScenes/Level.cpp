@@ -1,4 +1,5 @@
 #include "Level.h"
+#include "Office.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +9,6 @@
 #include "AssetManagers/AudioManager.h"
 #include "Config/Config.h"
 #include "Entities/Entities.h"
-#include "Game/Scenes/Menus/MainMenu.h"
 
 namespace
 {
@@ -88,7 +88,11 @@ std::unique_ptr<Scene> Level::createExitScene() const
     {
         return std::make_unique<Level>(3);
     }
-    return _index == 2 ? std::make_unique<MainMenu>() : MapScene::createExitScene();
+    if (std::filesystem::is_regular_file(levelMapPath(_index + 1)))
+    {
+        return std::make_unique<Level>(_index + 1);
+    }
+    return std::make_unique<Office>();
 }
 
 std::unique_ptr<Scene> Level::createRestartScene() const

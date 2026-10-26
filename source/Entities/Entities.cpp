@@ -823,6 +823,20 @@ std::span<const ParticleHandle> Entities::GetParticles(std::size_t index) const
 	return _particlesEntitiesList[index];
 }
 
+WorldSprite Entities::EntityWorldSprite(std::size_t index) const
+{
+	const SDL_FRect& source = _spriteEntities[index]->getSourceRect(_frames[index]);
+	const RobotProfile* profile = _robotTypes[index] != RobotType::None ?
+		&Config::getInstance().getRobotProfile(_robotTypes[index]) : nullptr;
+	const float spriteScale = profile ? profile->spriteScale : (index == PlayerIndex ? PlayerScale : 1.0f);
+	const float pivotX = profile ? profile->pivotX : source.w * 0.5f;
+	const float pivotY = profile ? profile->pivotY : source.h * 0.75f;
+	return { _spriteEntities[index]->getTexture().get(), source,
+		{ _xEntities[index] - pivotX * spriteScale, _yEntities[index] - pivotY * spriteScale,
+			source.w * spriteScale, source.h * spriteScale }, _yEntities[index], 1.0f, 0.0,
+		_facingLeft[index] ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE };
+}
+
 void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float scale, float offsetX, float offsetY) const
 {
 	ValidateIndex(index);
@@ -830,20 +844,13 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 	{
 		return;
 	}
-	const SDL_FRect& source = _spriteEntities[index]->getSourceRect(_frames[index]);
+	const auto sprite = EntityWorldSprite(index);
+	renderer.drawWorldSprite(sprite, { scale, offsetX, offsetY });
+	const auto& source = sprite.source;
 	const RobotProfile* profile = _robotTypes[index] != RobotType::None ?
 		&Config::getInstance().getRobotProfile(_robotTypes[index]) : nullptr;
 	const float spriteScale = profile ? profile->spriteScale : (index == PlayerIndex ? PlayerScale : 1.0f);
-	const float pivotX = profile ? profile->pivotX : source.w * 0.5f;
 	const float pivotY = profile ? profile->pivotY : source.h * 0.75f;
-	const SDL_FRect destination{
-		offsetX + (_xEntities[index] - pivotX * spriteScale) * scale,
-		offsetY + (_yEntities[index] - pivotY * spriteScale) * scale,
-		source.w * spriteScale * scale,
-		source.h * spriteScale * scale
-	};
-	renderer.drawTextureRotated(_spriteEntities[index]->getTexture().get(), destination, &source,
-		0.0, _facingLeft[index] ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 	const auto& state = _robotStates[index];
 	const bool teleporting = state.teleportPhase == RobotRuntimeState::TeleportPhase::Disappearing ||
 		state.teleportPhase == RobotRuntimeState::TeleportPhase::Appearing;
@@ -863,7 +870,8 @@ void Entities::RenderEntity(std::size_t index, const Renderer& renderer, float s
 	}
 }
 
-void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY) const
+void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float scale, float offsetX, float offsetY,
+	std::span<const WorldSprite> props) const
 {
 	for (std::size_t index = 0; index < _robotTypes.size(); ++index)
 	{
@@ -872,22 +880,32 @@ void Entities::RenderLayer(std::size_t layer, const Renderer& renderer, float sc
 			RenderVision(index, renderer, scale, offsetX, offsetY);
 		}
 	}
-	std::vector<std::size_t> drawOrder;
-	drawOrder.reserve(_spriteEntities.size());
+	struct DrawItem
+	{
+		float depth;
+		std::size_t index;
+		bool prop;
+	};
+	std::vector<DrawItem> drawOrder;
+	std::vector<WorldSprite> actors;
+	drawOrder.reserve(_spriteEntities.size() + props.size());
+	for (std::size_t index = 0; index < props.size(); ++index) drawOrder.push_back({ props[index].depth, index, true });
 	for (std::size_t index = 0; index < _spriteEntities.size(); ++index)
 	{
 		if (_renderLayers[index] == layer && _visibilityEntities[index] && _spriteEntities[index])
 		{
-			drawOrder.push_back(index);
+			drawOrder.push_back({ _yEntities[index], index, false });
+			if (index == PlayerIndex || _robotTypes[index] != RobotType::None) actors.push_back(EntityWorldSprite(index));
 		}
 	}
-	std::stable_sort(drawOrder.begin(), drawOrder.end(), [this](std::size_t left, std::size_t right)
+	std::stable_sort(drawOrder.begin(), drawOrder.end(), [](const DrawItem& left, const DrawItem& right)
 	{
-		return _yEntities[left] < _yEntities[right];
+		return left.depth < right.depth || (left.depth == right.depth && left.prop && !right.prop);
 	});
-	for (const auto index : drawOrder)
+	for (const auto& item : drawOrder)
 	{
-		RenderEntity(index, renderer, scale, offsetX, offsetY);
+		if (item.prop) renderer.drawWorldSprite(props[item.index], { scale, offsetX, offsetY }, actors);
+		else RenderEntity(item.index, renderer, scale, offsetX, offsetY);
 	}
 }
 

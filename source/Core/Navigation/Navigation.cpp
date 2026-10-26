@@ -27,6 +27,23 @@ namespace
 {
 	constexpr float PixelsPerMeter = 32.0f;
 
+	struct QueryContext
+	{
+		const NavigationRequest* request;
+		b2Vec2 centre{};
+		b2Vec2 translation{};
+		bool blocked = false;
+	};
+
+	bool ignoredShape(const NavigationRequest& request, b2ShapeId shape)
+	{
+		const auto body = b2Shape_GetBody(shape);
+		return std::any_of(request.ignoredBodies.begin(), request.ignoredBodies.end(), [body](b2BodyId ignored)
+		{
+			return B2_ID_EQUALS(body, ignored);
+		});
+	}
+
 	b2ShapeProxy colliderProxy(const NavigationRequest& request, const SDL_FPoint& feet, float padding)
 	{
 		const float halfWidth = request.colliderSize.x * 0.5f + padding;
@@ -51,30 +68,41 @@ namespace
 		}
 		const auto proxy = colliderProxy(request, feet, padding);
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		filter.maskBits = 1u;
-		bool blocked = false;
-		b2World_OverlapShape(request.world, &proxy, filter, [](b2ShapeId, void* context)
+		filter.maskBits = request.obstacleMask;
+		QueryContext context{ &request };
+		b2World_OverlapShape(request.world, &proxy, filter, [](b2ShapeId shape, void* userData)
 		{
-			*static_cast<bool*>(context) = true;
+			auto& query = *static_cast<QueryContext*>(userData);
+			if (ignoredShape(*query.request, shape)) return true;
+			query.blocked = true;
 			return false;
-		}, &blocked);
-		return !blocked;
+		}, &context);
+		return !context.blocked;
 	}
 
 	bool canTraverse(const NavigationRequest& request, const SDL_FPoint& from, const SDL_FPoint& to, float padding = 1.0f)
 	{
 		const auto proxy = colliderProxy(request, from, padding);
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		filter.maskBits = 1u;
-		bool blocked = false;
+		filter.maskBits = request.obstacleMask;
+		QueryContext context{ &request, { from.x / PixelsPerMeter, (from.y - request.colliderSize.y * 0.5f) / PixelsPerMeter },
+			{ (to.x - from.x) / PixelsPerMeter, (to.y - from.y) / PixelsPerMeter } };
 		b2World_CastShape(request.world, &proxy,
 			{ (to.x - from.x) / PixelsPerMeter, (to.y - from.y) / PixelsPerMeter }, filter,
-			[](b2ShapeId, b2Vec2, b2Vec2, float, void* context)
+			[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userData)
 			{
-				*static_cast<bool*>(context) = true;
+				auto& query = *static_cast<QueryContext*>(userData);
+				if (ignoredShape(*query.request, shape)) return -1.0f;
+				if (fraction == 0.0f)
+				{
+					const auto closest = b2Shape_GetClosestPoint(shape, query.centre);
+					if ((query.centre.x - closest.x) * query.translation.x + (query.centre.y - closest.y) * query.translation.y > 0.0f)
+						return -1.0f;
+				}
+				query.blocked = true;
 				return 0.0f;
-			}, &blocked);
-		return !blocked;
+			}, &context);
+		return !context.blocked;
 	}
 }
 

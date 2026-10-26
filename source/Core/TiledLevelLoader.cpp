@@ -159,6 +159,7 @@ namespace
         float imageWidth = 0.0f;
         float imageHeight = 0.0f;
         Renderer::Texture texture;
+        std::unordered_map<std::uint32_t, Renderer::Texture> tileImages;
         std::unordered_map<std::uint32_t, CollisionParts> collisions;
     };
 
@@ -174,9 +175,9 @@ namespace
 
         const auto* root = document.FirstChildElement("tileset");
         const auto* image = root ? root->FirstChildElement("image") : nullptr;
-        if (!root || !image || !image->Attribute("source"))
+        if (!root || (image && !image->Attribute("source")))
         {
-            throw std::runtime_error("Tileset must contain a single atlas image: " + tilesetPath.string());
+            throw std::runtime_error("Invalid tileset image definition: " + tilesetPath.string());
         }
 
         Tileset tileset;
@@ -188,7 +189,7 @@ namespace
         tileset.spacing = root->IntAttribute("spacing", 0);
         tileset.margin = root->IntAttribute("margin", 0);
         if (tileset.firstGid == 0 || tileset.firstGid > TileIdMask || tileset.tileWidth <= 0 ||
-            tileset.tileHeight <= 0 || tileset.tileCount <= 0 || tileset.columns <= 0 ||
+            tileset.tileHeight <= 0 || tileset.tileCount <= 0 || (image ? tileset.columns <= 0 : tileset.columns != 0) ||
             tileset.spacing < 0 || tileset.margin < 0)
         {
             throw std::runtime_error("Invalid tileset dimensions or firstgid: " + tilesetPath.string());
@@ -222,15 +223,30 @@ namespace
 
         for (const auto* tile = root->FirstChildElement("tile"); tile; tile = tile->NextSiblingElement("tile"))
         {
+            int tileId = -1;
+            if (tile->QueryIntAttribute("id", &tileId) != tinyxml2::XML_SUCCESS || tileId < 0 || (image && tileId >= tileset.tileCount))
+            {
+                throw std::runtime_error("Invalid tile ID in tileset: " + tilesetPath.string());
+            }
+            if (!image)
+            {
+                const auto* tileImage = tile->FirstChildElement("image");
+                if (!tileImage || !tileImage->Attribute("source") || tileset.tileImages.contains(tileId))
+                {
+                    throw std::runtime_error("Image collection tiles need unique IDs and image sources: " + tilesetPath.string());
+                }
+                auto texture = renderer.loadTexture((tilesetPath.parent_path() / tileImage->Attribute("source")).lexically_normal());
+                float width = 0.0f, height = 0.0f;
+                if (!renderer.getTextureSize(texture.get(), width, height) || width <= 0.0f || height <= 0.0f)
+                {
+                    throw std::runtime_error("Cannot read collection tile image: " + tilesetPath.string());
+                }
+                tileset.tileImages.emplace(static_cast<std::uint32_t>(tileId), std::move(texture));
+            }
             const auto* objects = tile->FirstChildElement("objectgroup");
             if (!objects)
             {
                 continue;
-            }
-            int tileId = -1;
-            if (tile->QueryIntAttribute("id", &tileId) != tinyxml2::XML_SUCCESS || tileId < 0 || tileId >= tileset.tileCount)
-            {
-                throw std::runtime_error("Invalid collision tile ID in tileset: " + tilesetPath.string());
             }
             auto& parts = tileset.collisions[static_cast<std::uint32_t>(tileId)];
             for (const auto* object = objects->FirstChildElement("object"); object; object = object->NextSiblingElement("object"))
@@ -242,11 +258,18 @@ namespace
             }
         }
 
-        const auto imagePath = (tilesetPath.parent_path() / image->Attribute("source")).lexically_normal();
-        tileset.texture = renderer.loadTexture(imagePath);
-        if (!renderer.getTextureSize(tileset.texture.get(), tileset.imageWidth, tileset.imageHeight))
+        if (image)
         {
-            throw std::runtime_error("Cannot read tileset image dimensions: " + imagePath.string());
+            const auto imagePath = (tilesetPath.parent_path() / image->Attribute("source")).lexically_normal();
+            tileset.texture = renderer.loadTexture(imagePath);
+            if (!renderer.getTextureSize(tileset.texture.get(), tileset.imageWidth, tileset.imageHeight))
+            {
+                throw std::runtime_error("Cannot read tileset image dimensions: " + imagePath.string());
+            }
+        }
+        else if (tileset.tileImages.empty())
+        {
+            throw std::runtime_error("Image collection contains no tile images: " + tilesetPath.string());
         }
         return tileset;
     }
@@ -304,7 +327,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
             return left.firstGid < right.firstGid;
         });
 
-        const auto makeTile = [&tilesets](std::uint32_t rawGid)
+        const auto makeTile = [&tilesets, &renderer](std::uint32_t rawGid)
         {
             const auto gid = rawGid & TileIdMask;
             auto found = std::upper_bound(tilesets.begin(), tilesets.end(), gid,
@@ -315,6 +338,21 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
             }
             const Tileset& tileset = *--found;
             const auto localId = gid - tileset.firstGid;
+            if (!tileset.texture)
+            {
+                const auto image = tileset.tileImages.find(localId);
+                if (image == tileset.tileImages.end())
+                {
+                    throw std::runtime_error("Tile GID has no image in its collection");
+                }
+                Tile tile;
+                tile.texture = image->second.get();
+                if (!renderer.getTextureSize(tile.texture, tile.source.w, tile.source.h))
+                {
+                    throw std::runtime_error("Cannot read collection tile dimensions");
+                }
+                return std::pair{ tile, &tileset };
+            }
             if (localId >= static_cast<std::uint32_t>(tileset.tileCount))
             {
                 throw std::runtime_error("Tile GID exceeds its tileset tile count");
@@ -504,6 +542,8 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                         tile.destination.y = originY + std::sin(radians) * centerX + std::cos(radians) * centerY - height * 0.5f;
                         tile.opacity = opacity * objectOpacity;
                         tile.angle = rotation;
+                        tile.depth = tile.destination.y + tile.destination.h;
+                        tile.depthSorted = !tileset->texture;
                         if (objectClass == "Door")
                         {
                             const auto name = object.value("name", std::string{});
@@ -614,20 +654,23 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                     auto [tile, tileset] = makeTile(rawGid);
                     const float destinationX = static_cast<float>(tileX) * tileWidth + offsetX + tileset->offsetX;
                     const float destinationY = (static_cast<float>(tileY) + 1.0f) * tileHeight + offsetY +
-                        tileset->offsetY - tileset->tileHeight;
+                        tileset->offsetY - tile.source.h;
+                    tile.depth = destinationY + tile.source.h;
+                    tile.depthSorted = !tileset->texture;
                     if (frameCollisionLayer)
                     {
                         const auto shapes = tileset->collisions.find(gid - tileset->firstGid);
                         if (shapes != tileset->collisions.end())
                         {
+                            if (tile.depthSorted && !shapes->second.empty()) tile.depth = -INFINITY;
                             for (const auto& shape : shapes->second)
                             {
                                 CollisionPolygon vertices;
                                 vertices.reserve(shape.size());
                                 for (const SDL_FPoint& vertex : shape)
                                 {
-                                    float unitX = vertex.x / static_cast<float>(tileset->tileWidth);
-                                    float unitY = vertex.y / static_cast<float>(tileset->tileHeight);
+                                    float unitX = vertex.x / tile.source.w;
+                                    float unitY = vertex.y / tile.source.h;
                                     if (rawGid & FlipDiagonal)
                                     {
                                         std::swap(unitX, unitY);
@@ -640,8 +683,12 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
                                     {
                                         unitY = 1.0f - unitY;
                                     }
-                                    vertices.push_back({ destinationX + unitX * tileset->tileWidth,
-                                        destinationY + unitY * tileset->tileHeight });
+                                    vertices.push_back({ destinationX + unitX * tile.source.w,
+                                        destinationY + unitY * tile.source.h });
+                                }
+                                if (tile.depthSorted)
+                                {
+                                    for (const auto& vertex : vertices) tile.depth = std::max(tile.depth, vertex.y);
                                 }
                                 _frameCollisions.push_back(std::move(vertices));
                             }
@@ -673,7 +720,14 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
 
         for (auto& tileset : tilesets)
         {
-            _textures.push_back(std::move(tileset.texture));
+            if (tileset.texture)
+            {
+                _textures.push_back(std::move(tileset.texture));
+            }
+            for (auto& [tileId, texture] : tileset.tileImages)
+            {
+                _textures.push_back(std::move(texture));
+            }
         }
         _width = static_cast<float>(mapWidth) * tileWidth;
         _height = static_cast<float>(mapHeight) * tileHeight;
@@ -688,7 +742,7 @@ bool TiledLevelLoader::load(const std::filesystem::path& mapPath, const Renderer
 }
 
 void TiledLevelLoader::render(const Renderer& renderer, const RenderView& view,
-    const std::function<void(std::size_t, float, float, float)>& renderEntities) const
+    const std::function<void(std::size_t, float, float, float, std::span<const WorldSprite>)>& renderEntities) const
 {
     if (_width <= 0.0f || _height <= 0.0f)
     {
@@ -699,6 +753,15 @@ void TiledLevelLoader::render(const Renderer& renderer, const RenderView& view,
     const float offsetX = view.offsetX;
     const float offsetY = view.offsetY;
 
+    const bool mergeProps = renderEntities && !_entityLayers.empty();
+    std::vector<WorldSprite> props;
+    if (mergeProps)
+    {
+        for (const auto& tile : _tiles)
+        {
+            if (tile.depthSorted) props.push_back(tile);
+        }
+    }
     std::size_t renderLayer = 0;
     for (std::size_t tileIndex = 0; tileIndex <= _tiles.size(); ++tileIndex)
     {
@@ -706,7 +769,7 @@ void TiledLevelLoader::render(const Renderer& renderer, const RenderView& view,
         {
             if (renderEntities)
             {
-                renderEntities(renderLayer, scale, offsetX, offsetY);
+                renderEntities(renderLayer, scale, offsetX, offsetY, renderLayer == 0 ? std::span<const WorldSprite>(props) : std::span<const WorldSprite>{});
             }
             ++renderLayer;
         }
@@ -715,6 +778,7 @@ void TiledLevelLoader::render(const Renderer& renderer, const RenderView& view,
             break;
         }
         const Tile& tile = _tiles[tileIndex];
+        if (tile.depthSorted && mergeProps) continue;
         const SDL_FRect destination{
             offsetX + tile.destination.x * scale,
             offsetY + tile.destination.y * scale,
