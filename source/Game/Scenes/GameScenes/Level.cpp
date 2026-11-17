@@ -52,29 +52,6 @@ void Level::init()
     }
 }
 
-void Level::update(float deltaTime)
-{
-    if ((_index == 1 || _index == 2 || _index == 3) && !shouldQuit() && !isPaused() && !isTransitioning() && !_introDialogShown &&
-        std::isfinite(deltaTime) && deltaTime > 0.0f)
-    {
-
-    jj
-    }
-    MapScene::update(deltaTime);
-}
-
-void Level::cleanup()
-{
-    if (_index == 1 || _index == 2 || _index == 3)
-    {
-        AudioManager::getInstance().stopMusic();
-    }
-    MapScene::cleanup();
-}
-
-int Level::getIndex() const noexcept
-{
-    return _index;
 }
 
 bool Level::isPlayerControlEnabled() const
