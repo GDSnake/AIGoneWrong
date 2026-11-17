@@ -57,46 +57,8 @@ void Level::update(float deltaTime)
     if ((_index == 1 || _index == 2 || _index == 3) && !shouldQuit() && !isPaused() && !isTransitioning() && !_introDialogShown &&
         std::isfinite(deltaTime) && deltaTime > 0.0f)
     {
-        _dialogDelay += std::min(deltaTime, 0.25f);
-        if (_dialogDelay >= 1.0f)
-        {
-            _introDialogShown = true;
-            if (_index == 1)
-            {   
-                const std::string characterName = _pizzaEaten ? "Anthony Ivalez" : "#generate# Ivalez";
 
-                showDialog({
-                    { characterName, _pizzaEaten
-                        ? "That pizza tasted good...Oh I've remember my name, well nevermind..."
-                        : "I'm hungry...I should have ate that pizza... I still don't remember fully my name" },
-                    { characterName, "Something odd looks like it's happening with the robots.\nThey are outside of their usual place." },
-                    { characterName, "Did something went wrong with their AI?" } });
-            }
-            else if (_index == 2 && _pizzaEaten)
-            {
-                const std::string characterName = _pizzaEaten ? "Anthony Ivalez" : "Anders Issakson";
-                showDialog({
-                    { characterName, "Great...the flying robots are up..." },
-                    { characterName, "Well I have to go through and shut them down at my computer" } });
-            }
-            else
-            {
-                const std::string characterName = _pizzaEaten ? "Anthony Ivalez" : "Anders Issakson";
-
-                if (_index == 2)
-                {
-                    showDialog({
-                        { characterName, "I guess I'm Swedish..I've remembered my name...\nI don't remember we having flying robots..." },
-                        { characterName, "Well we have to go through and shut them down at my computer" } });
-                }
-                else
-                {
-                    showDialog({
-                        { characterName, "Oh great the lab...with all the mad experiments... But it's close to my office, I can feel it" },
-                        { characterName, "Just going down the hall" } });
-                }
-            }
-        }
+    
     }
     MapScene::update(deltaTime);
 }
